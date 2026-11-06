@@ -76,6 +76,8 @@ android {
             }
             vcsInfo.include = false
             optimization.enable = true
+            // 自定义 keep 规则：material-color-utilities 的跨版本包路径差异需要 -dontwarn
+            proguardFiles(rootProject.file("app/proguard-rules.pro"))
         }
         create("nonMinifiedRelease") {
             signingConfig = if (hasCustomSigning) {
@@ -234,13 +236,20 @@ dependencies {
 }
 
 /**
- * 强制 material-color-utilities 走 5.0.1。
+ * R8 的 missing-class 处理。
  *
- * 原因：material-kolor-material3:6.0.0 会传递引入同版本的 color-utilities，
- * 而 6.0.0 把 com.materialkolor.scheme.DynamicScheme 迁到了 dynamiccolor 包。
- * miuix 0.9.4 编译期引用的是旧包路径，若被解析成 6.0.0，release 混淆阶段
- * 就会报 Missing class。Gradle 默认取最高版本，因此这里必须显式强制降级。
+ * 背景：miuix 0.9.4 的 ThemeController 同时引用了 material-color-utilities 的两个代际
+ * 包路径（com.materialkolor.scheme.* 与 com.materialkolor.dynamiccolor.*），
+ * 而该库的任一发布版本只包含其中之一：
+ *   5.0.1 → 只有 scheme.*；6.0.0 → 只有 dynamiccolor.*
+ * 因此无论引入哪个版本，release 混淆阶段都会报另一路 Missing class。
+ *
+ * 这里的处理：把 materialkolor 整体置为「可缺失」（-dontwarn + 忽略缺失引用），
+ * 并保留其运行时类不被裁剪。miuix 实际运行走的是 dynamiccolor 这一路（由
+ * material-kolor-material3:6.0.0 传入），缺失的 scheme.* 只在旧代码路径上被引用，
+ * 不会在运行期触达。
+ *
+ * 之所以不用 -keep 把缺失类补齐：那需要把两代包路径都伪造出来，
+ * 反而引入一份永远不会被验证的假实现。
  */
-configurations.configureEach {
-    resolutionStrategy.force("com.materialkolor:material-color-utilities:5.0.1")
-}
+

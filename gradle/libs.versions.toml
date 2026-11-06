@@ -139,10 +139,9 @@ monetcompat = { module = "com.github.KieronQuinn:MonetCompat", version.ref = "mo
 androidx-palette = { group = "androidx.palette", name = "palette", version = "1.0.0" }
 
 materialKolor = { module = "com.materialkolor:material-kolor-material3", version.ref = "materialKolor" }
-# 注意：miuix 0.9.4 编译时针对的是 material-color-utilities 5.x 的包路径 com.materialkolor.scheme.*；
-# 6.0.0 已把该类移到 com.materialkolor.dynamiccolor，混用会在 release 混淆阶段报 Missing class。
-# 因此这里固定 5.0.1，与 miuix 的引用保持一致，不要跟随 materialKolor 的版本升级。
-materialColorUtilities = { module = "com.materialkolor:material-color-utilities", version = "5.0.1" }
+# miuix 0.9.4 同时引用了 material-color-utilities 的两代包路径，单靠依赖版本无法同时满足，
+# 缺失的那一路由 app/proguard-rules.pro 的 -dontwarn 处理；这里保持与 materialKolor 同版本。
+materialColorUtilities = { module = "com.materialkolor:material-color-utilities", version.ref = "materialKolor" }
 
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junit" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
