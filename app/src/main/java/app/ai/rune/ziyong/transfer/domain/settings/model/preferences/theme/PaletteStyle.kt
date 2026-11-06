@@ -11,7 +11,6 @@ enum class PaletteStyle(val displayName: String, val desc: String = "") {
     Monochrome("Monochrome"),
     Fidelity("Fidelity"),
     Content("Content"),
-    Cmf("CMF"),
     ;
 
     val supportedSpecs: List<ThemeColorSpec>

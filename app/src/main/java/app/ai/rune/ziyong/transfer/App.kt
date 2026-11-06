@@ -5,6 +5,8 @@ import app.ai.rune.ziyong.transfer.core.i18n.LocaleManager
 import android.content.Context
 
 import android.app.Application
+import android.app.NotificationManager
+import android.app.NotificationChannel
 import android.os.Build
 import com.kieronquinn.monetcompat.core.MonetCompat
 import app.ai.rune.ziyong.transfer.core.crash.CrashHandler
@@ -51,6 +53,23 @@ class App : Application() {
                 ?.take(23)
         })
 
+        // 通知渠道必须在任何服务发出通知前创建，否则 Android 8+ 会直接丢通知
+        getSystemService(NotificationManager::class.java)?.apply {
+            createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, getString(R.string.channel_name), NotificationManager.IMPORTANCE_LOW)
+                    .apply { description = getString(R.string.channel_desc) },
+            )
+            createNotificationChannel(
+                NotificationChannel(LIVE_CHANNEL_ID, "实时状态", NotificationManager.IMPORTANCE_LOW).apply {
+                    description = "仅在网关处理请求时显示，点击回到应用"
+                    setSound(null, null)
+                    enableVibration(false)
+                    enableLights(false)
+                    setShowBadge(false)
+                },
+            )
+        }
+
         startKoin {
             // Koin Android Logger
             androidLogger()
@@ -69,5 +88,13 @@ class App : Application() {
             AppConfig.LEVEL.name,
             android.os.Process.myPid(),
         )
+    }
+
+    companion object {
+        /** 常驻前台服务通知渠道。 */
+        const val CHANNEL_ID = "aigw"
+
+        /** 实时状态通知渠道（Android 16 Live Updates 走这里）。 */
+        const val LIVE_CHANNEL_ID = "aigw_live"
     }
 }

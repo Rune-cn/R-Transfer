@@ -14,16 +14,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import ApkInstaller
-import KeepAlive
-import KeepAliveStatus
+import app.ai.rune.ziyong.transfer.gateway.ApkInstaller
+import app.ai.rune.ziyong.transfer.gateway.KeepAlive
+import app.ai.rune.ziyong.transfer.gateway.KeepAliveStatus
 import app.ai.rune.ziyong.transfer.domain.settings.model.preferences.theme.ThemeMode
 import app.ai.rune.ziyong.transfer.ui.theme.defaultAppColors
 import app.ai.rune.ziyong.transfer.ui.theme.formatHex
 import app.ai.rune.ziyong.transfer.ui.theme.parseHexColor
-import GatewayService
-import GatewayTileService
-import LoginWaitService
+import app.ai.rune.ziyong.transfer.gateway.service.GatewayService
+import app.ai.rune.ziyong.transfer.gateway.service.GatewayTileService
+import app.ai.rune.ziyong.transfer.gateway.service.LoginWaitService
 import dev.aigw.core.gateway.BatchActionResult
 import dev.aigw.core.gateway.BatchProgress
 import dev.aigw.core.gateway.BatchTarget
@@ -90,18 +90,18 @@ class AppearanceStore(private val store: KeyValueStore) {
     }
 
     fun themeMode(): ThemeMode = when (store.read(KEY_MODE)) {
-        "light" -> ThemeMode.Light
-        "dark" -> ThemeMode.Dark
-        else -> ThemeMode.System
+        "light" -> ThemeMode.LIGHT
+        "dark" -> ThemeMode.DARK
+        else -> ThemeMode.SYSTEM
     }
 
     fun setThemeMode(mode: ThemeMode) {
         store.write(
             KEY_MODE,
             when (mode) {
-                ThemeMode.Light -> "light"
-                ThemeMode.Dark -> "dark"
-                ThemeMode.System -> "system"
+                ThemeMode.LIGHT -> "light"
+                ThemeMode.DARK -> "dark"
+                ThemeMode.SYSTEM -> "system"
             },
         )
     }
@@ -279,7 +279,7 @@ data class AppUiState(
     val proxy: ProxySettings = ProxySettings(),
     val dynamicColor: Boolean = false,
     /** 明暗模式。 */
-    val themeMode: ThemeMode = ThemeMode.System,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** 页面底色覆盖；null 表示用默认底色。 */
     val backgroundOverride: Color? = null,
     /** 金色渐变起始色。 */
@@ -917,7 +917,7 @@ class AppViewModel(
     fun resetAppearance() {
         persistAppearanceJob?.cancel()
         _state.value = _state.value.copy(
-            themeMode = ThemeMode.System,
+            themeMode = ThemeMode.SYSTEM,
             backgroundOverride = null,
             goldStart = defaultAppColors.goldStart,
             goldEnd = defaultAppColors.goldEnd,

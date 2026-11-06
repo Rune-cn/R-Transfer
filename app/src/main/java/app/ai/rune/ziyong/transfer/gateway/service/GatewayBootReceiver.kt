@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
-import KeepAlivePrefs
+import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import gatewayEngine
 import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import app.ai.rune.ziyong.transfer.gateway.gatewayEngine

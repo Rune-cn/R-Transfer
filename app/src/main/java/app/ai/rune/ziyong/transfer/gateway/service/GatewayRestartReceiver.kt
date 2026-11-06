@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
-import KeepAlivePrefs
+import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import gatewayEngine
 import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
