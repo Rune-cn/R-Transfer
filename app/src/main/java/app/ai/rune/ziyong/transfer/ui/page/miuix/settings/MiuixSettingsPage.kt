@@ -1,0 +1,404 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package app.ai.rune.ziyong.transfer.ui.page.miuix.settings
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import app.ai.rune.ziyong.transfer.R
+import app.ai.rune.ziyong.transfer.ui.icons.AppIcons
+import app.ai.rune.ziyong.transfer.ui.library.FloatingBottomBar
+import app.ai.rune.ziyong.transfer.ui.library.FloatingBottomBarMode
+import app.ai.rune.ziyong.transfer.ui.navigation.LocalNavigator
+import app.ai.rune.ziyong.transfer.ui.navigation.MainPagerState
+import app.ai.rune.ziyong.transfer.ui.navigation.Route
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.home.MiuixHomePage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.log.MiuixLogPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.providers.MiuixProvidersPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.preferred.MiuixPreferredPage
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.NavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
+import top.yukonga.miuix.kmp.basic.NavigationBarItem
+import top.yukonga.miuix.kmp.basic.NavigationItem
+import top.yukonga.miuix.kmp.basic.NavigationRail
+import top.yukonga.miuix.kmp.basic.NavigationRailItem
+import top.yukonga.miuix.kmp.basic.NavigationRailValue
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.basic.rememberNavigationRailState
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurColors
+import top.yukonga.miuix.kmp.blur.LayerBackdrop as MiuixLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
+import top.yukonga.miuix.kmp.blur.textureBlur
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+/**
+ * Reusable Floating Bottom Bar
+ */
+@Composable
+private fun SettingsFloatingBottomBar(
+    mainPagerState: MainPagerState,
+    navigationItems: List<NavigationItem>,
+    floatingBottomBarMode: FloatingBottomBarMode,
+    floatingBackdrop: MiuixLayerBackdrop,
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        FloatingBottomBar(
+            items = navigationItems,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(
+                    bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues()
+                        .calculateBottomPadding(),
+                ),
+            selectedIndex = { mainPagerState.selectedPage },
+            onSelected = { index ->
+                mainPagerState.animateToPage(index)
+            },
+            backdrop = floatingBackdrop,
+            mode = floatingBottomBarMode,
+            iconContent = { item, _ ->
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = null,
+                )
+            },
+            labelContent = { item, _ ->
+                Text(
+                    text = item.label,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
+                )
+            },
+        )
+    }
+}
+
+/**
+ * Compact Screen Layout (Portrait/Phone)
+ */
+@Composable
+fun SettingsCompactLayout(
+    configCount: Int,
+    mainPagerState: MainPagerState,
+    navigationItems: List<NavigationItem>,
+    snackbarHostState: SnackbarHostState,
+    useFloatingBottomBar: Boolean,
+    floatingBottomBarMode: FloatingBottomBarMode,
+    floatingBackdrop: MiuixLayerBackdrop?,
+    miuixBackdrop: MiuixLayerBackdrop?,
+) {
+    val navigator = LocalNavigator.current
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            if (useFloatingBottomBar && floatingBackdrop != null) {
+                SettingsFloatingBottomBar(
+                    mainPagerState = mainPagerState,
+                    navigationItems = navigationItems,
+                    floatingBottomBarMode = floatingBottomBarMode,
+                    floatingBackdrop = floatingBackdrop,
+                )
+            } else if (!useFloatingBottomBar) {
+                val blurActive = miuixBackdrop != null
+                val barColor = if (blurActive) Color.Transparent else MiuixTheme.colorScheme.surface
+                Box(
+                    modifier = Modifier
+                        .then(
+                            if (blurActive) {
+                                Modifier.textureBlur(
+                                    backdrop = miuixBackdrop,
+                                    shape = RectangleShape,
+                                    blurRadius = 25f,
+                                    colors = BlurColors(
+                                        blendColors = listOf(
+                                            BlendColorEntry(color = MiuixTheme.colorScheme.surface.copy(0.8f)),
+                                        ),
+                                    ),
+                                )
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .background(barColor),
+                ) {
+                    NavigationBar(
+                        color = barColor,
+                        // miuix native: selected icon glides up 11dp (tween 300) — legado leaves
+                        // the regular NavigationBar to miuix without custom animation.
+                        mode = NavigationBarDisplayMode.IconWithSelectedLabel,
+                    ) {
+                        navigationItems.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = mainPagerState.selectedPage == index,
+                                onClick = {
+                                    mainPagerState.animateToPage(index)
+                                },
+                                icon = item.icon,
+                                label = item.label,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        snackbarHost = { SnackbarHost(state = snackbarHostState) },
+        // Shell mode: sample page — no plus (FAB) button.
+    ) { paddingValues ->
+        SettingsPagerContent(
+            configCount = configCount,
+            mainPagerState = mainPagerState,
+            navigationItems = navigationItems,
+            snackbarHostState = snackbarHostState,
+            modifier = Modifier.fillMaxSize(),
+            outerPadding = paddingValues,
+            useFloatingBottomBar = useFloatingBottomBar,
+            floatingBackdrop = floatingBackdrop,
+            miuixBackdrop = miuixBackdrop,
+        )
+    }
+}
+
+/**
+ * Wide Screen Layout (Tablet/Landscape)
+ */
+@Composable
+fun SettingsWideScreenLayout(
+    configCount: Int,
+    mainPagerState: MainPagerState,
+    navigationItems: List<NavigationItem>,
+    snackbarHostState: SnackbarHostState,
+    useFloatingBottomBar: Boolean,
+    floatingBottomBarMode: FloatingBottomBarMode,
+    floatingBackdrop: MiuixLayerBackdrop?,
+    miuixBackdrop: MiuixLayerBackdrop?,
+) {
+    if (useFloatingBottomBar) {
+        SettingsWideContent(
+            configCount = configCount,
+            mainPagerState = mainPagerState,
+            navigationItems = navigationItems,
+            snackbarHostState = snackbarHostState,
+            useFloatingBottomBar = true,
+            floatingBottomBarMode = floatingBottomBarMode,
+            floatingBackdrop = floatingBackdrop,
+            miuixBackdrop = miuixBackdrop,
+        )
+    } else {
+        val expandRail = shouldExpandNavigationRail()
+        val railState = rememberNavigationRailState(
+            initialValue = if (expandRail) NavigationRailValue.Expanded else NavigationRailValue.Collapsed,
+        )
+        val contentWindowInsets = WindowInsets.systemBars.union(
+            WindowInsets.displayCutout.exclude(
+                WindowInsets.displayCutout.only(WindowInsetsSides.Start),
+            ),
+        )
+        val startInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
+            .only(WindowInsetsSides.Start)
+
+        LaunchedEffect(expandRail) {
+            if (expandRail) {
+                railState.expand()
+            } else {
+                railState.collapse()
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MiuixTheme.colorScheme.surface),
+        ) {
+            NavigationRail(
+                state = railState,
+            ) {
+                navigationItems.forEachIndexed { index, item ->
+                    NavigationRailItem(
+                        selected = mainPagerState.selectedPage == index,
+                        onClick = {
+                            mainPagerState.animateToPage(index)
+                        },
+                        icon = item.icon,
+                        label = item.label,
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .consumeWindowInsets(startInsets),
+            ) {
+                SettingsWideContent(
+                    configCount = configCount,
+                    mainPagerState = mainPagerState,
+                    navigationItems = navigationItems,
+                    snackbarHostState = snackbarHostState,
+                    useFloatingBottomBar = false,
+                    floatingBottomBarMode = FloatingBottomBarMode.None,
+                    floatingBackdrop = floatingBackdrop,
+                    miuixBackdrop = miuixBackdrop,
+                    contentWindowInsets = contentWindowInsets,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsWideContent(
+    configCount: Int,
+    mainPagerState: MainPagerState,
+    navigationItems: List<NavigationItem>,
+    snackbarHostState: SnackbarHostState,
+    useFloatingBottomBar: Boolean,
+    floatingBottomBarMode: FloatingBottomBarMode,
+    floatingBackdrop: MiuixLayerBackdrop?,
+    miuixBackdrop: MiuixLayerBackdrop?,
+    contentWindowInsets: WindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout),
+) {
+    val navigator = LocalNavigator.current
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = contentWindowInsets,
+        bottomBar = {
+            if (useFloatingBottomBar && floatingBackdrop != null) {
+                SettingsFloatingBottomBar(
+                    mainPagerState = mainPagerState,
+                    navigationItems = navigationItems,
+                    floatingBottomBarMode = floatingBottomBarMode,
+                    floatingBackdrop = floatingBackdrop,
+                )
+            }
+        },
+        snackbarHost = { SnackbarHost(state = snackbarHostState) },
+        // Shell mode: sample page — no plus (FAB) button.
+    ) { paddingValues ->
+        SettingsPagerContent(
+            configCount = configCount,
+            mainPagerState = mainPagerState,
+            navigationItems = navigationItems,
+            snackbarHostState = snackbarHostState,
+            modifier = Modifier.fillMaxSize(),
+            outerPadding = paddingValues,
+            useFloatingBottomBar = useFloatingBottomBar,
+            floatingBackdrop = floatingBackdrop,
+            miuixBackdrop = miuixBackdrop,
+        )
+    }
+}
+
+@Composable
+private fun shouldExpandNavigationRail(): Boolean {
+    val windowInfo = LocalWindowInfo.current
+    val density = LocalDensity.current
+    return with(density) {
+        windowInfo.containerSize.width.toDp() >= 1200.dp
+    }
+}
+
+@Composable
+private fun SettingsPagerContent(
+    configCount: Int,
+    modifier: Modifier = Modifier,
+    mainPagerState: MainPagerState,
+    navigationItems: List<NavigationItem>,
+    snackbarHostState: SnackbarHostState,
+    outerPadding: PaddingValues,
+    useFloatingBottomBar: Boolean,
+    floatingBackdrop: MiuixLayerBackdrop?,
+    miuixBackdrop: MiuixLayerBackdrop?,
+) {
+    HorizontalPager(
+        state = mainPagerState.pagerState,
+        userScrollEnabled = true,
+        overscrollEffect = null,
+        beyondViewportPageCount = 1,
+        modifier = modifier
+            .then(if (useFloatingBottomBar && floatingBackdrop != null) Modifier.miuixLayerBackdrop(floatingBackdrop) else Modifier)
+            .then(if (!useFloatingBottomBar && miuixBackdrop != null) Modifier.miuixLayerBackdrop(miuixBackdrop) else Modifier),
+    ) { page ->
+        val useBlur = floatingBackdrop != null && miuixBackdrop != null
+        when (page) {
+            0 -> MiuixHomePage(
+                enableBlur = useBlur,
+                title = navigationItems[page].label,
+                outerPadding = outerPadding,
+            )
+
+            1 -> MiuixProvidersPage(
+                enableBlur = useBlur,
+                title = navigationItems[page].label,
+                outerPadding = outerPadding,
+            )
+
+            2 -> MiuixLogPage(
+                enableBlur = useBlur,
+                title = navigationItems[page].label,
+                outerPadding = outerPadding,
+            )
+
+            3 -> MiuixPreferredPage(
+                enableBlur = useBlur,
+                title = navigationItems[page].label,
+                outerPadding = outerPadding,
+                snackbarHostState = snackbarHostState,
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun ExamplePage(title: String) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = { TopAppBar(title = title) },
+    ) { contentPadding ->
+        Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
+    }
+}

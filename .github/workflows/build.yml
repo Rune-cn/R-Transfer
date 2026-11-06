@@ -1,0 +1,129 @@
+name: Build
+
+# 触发策略：
+# - push 到 main → 构建 debug + release（release 需签名 Secrets），并上传产物
+# - PR → 只跑 :core 单测 + debug，不签名、不发版
+# - 手动触发 → 可指定是否跑单测
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_core_tests:
+        description: "同时运行 :core 单元测试"
+        type: boolean
+        default: true
+
+# 同一分支的新提交取消上一次未完成的构建，避免排队浪费额度。
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # AGP 9 要求 JDK 17+，这里用 21（LTS，与 Gradle 9 官方推荐一致）
+  JAVA_VERSION: "21"
+
+jobs:
+  build:
+    name: 构建 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 配置 JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 配置 Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # API 37 的 platform 包名带小版本（platforms;android-37.1 / 37.2），没有裸的 android-37。
+      # 这里按可用性择一安装，避免上游小版本变化后构建失效。
+      - name: 安装 Android SDK 组件
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          PICK=""
+          for p in "platforms;android-37.2" "platforms;android-37.1" "platforms;android-36"; do
+            if "$SDKMANAGER" --list 2>/dev/null | grep -q "^  *$p "; then PICK="$p"; break; fi
+          done
+          if [ -z "$PICK" ]; then echo "::error::找不到可用的 Android platform 包"; exit 1; fi
+          echo "将安装: $PICK"
+          "$SDKMANAGER" --install "$PICK" "build-tools;37.0.0" "platform-tools"
+
+      - name: 运行 :core 单元测试
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_core_tests)
+        run: ./gradlew :core:test --stacktrace
+
+      - name: 构建 Debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: 上传 Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: r-transfer-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      # ---- Release：密钥库从 Secrets 还原，密码只以环境变量传递，不在磁盘落明文配置 ----
+      - name: 还原签名密钥库
+        id: signing
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::未配置 RELEASE_KEYSTORE_BASE64，跳过 release 构建"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          # 只校验文件存在与可读，不打印任何凭证
+          test -s "$RUNNER_TEMP/release.jks"
+          echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: 构建 Release APK
+        if: steps.signing.outputs.available == 'true'
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: 上传 Release APK
+        if: steps.signing.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r-transfer-release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # 构建失败时把报告与日志留成产物，省得来回翻 Actions 页面。
+      - name: 收集失败日志
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            **/build/reports/**
+            **/build/outputs/logs/**
+          if-no-files-found: ignore
+          retention-days: 7

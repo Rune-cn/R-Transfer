@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.MiuixExample" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- edge-to-edge：两条系统栏都透明（API 35+ 忽略，但低版本需要） -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 起始窗口与 App 的 surface 一致，避免 recreate 时闪白 -->
+        <item name="android:windowBackground">@color/window_background</item>
+        <!-- 浅色主题：深色图标 -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <style name="Theme.MiuixExample.Translucent" parent="Theme.MiuixExample">
+        <item name="android:windowIsTranslucent">true</item>
+        <!--沉浸状态栏和导航栏-->
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.MiuixExample.Translucent.AppCompat" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+</resources>

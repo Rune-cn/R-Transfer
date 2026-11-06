@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.MiuixExample" parent="android:Theme.DeviceDefault.NoActionBar">
+        <!--    Compat Navigation Bar Color when ModalBottomSheet activated    -->
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <!-- edge-to-edge：两条系统栏都透明（API 35+ 忽略，但低版本需要） -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 起始窗口与 App 的 surface 一致，避免 recreate 时闪白 -->
+        <item name="android:windowBackground">@color/window_background</item>
+        <!-- 浅色主题：深色图标 -->
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+</resources>

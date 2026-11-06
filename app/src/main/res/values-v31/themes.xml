@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.MiuixExample" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- edge-to-edge：两条系统栏都透明 -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 起始窗口与 App 的 surface 一致，避免 recreate 时闪白 -->
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <!-- splash 背景与图标 -->
+        <item name="android:windowSplashScreenBackground">@android:color/background_light</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+    </style>
+
+</resources>

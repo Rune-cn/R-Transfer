@@ -1,0 +1,18 @@
+# Keep Android IPC interfaces
+-keep public interface ** extends android.os.IInterface {*;}
+
+# Keep biometric classes for Android 8.x
+-keep class androidx.biometric.internal.FingerprintManagerCompat$Api* {*;}
+
+# Keep application entry point
+# -keep public class com.miui.example.App {*;}
+
+# Keep all UI activities
+# -keep public class com.miui.example.ui.activity.** extends android.app.Activity
+
+# Uncomment and modify below if Services, Receivers, or Providers are missing in release build
+#-keep public class com.miui.example.** extends android.app.Service
+#-keep public class com.miui.example.** extends android.content.BroadcastReceiver
+#-keep public class com.miui.example.** extends android.content.ContentProvider
+#-keep class androidx.core.content.FileProvider {*;}
+#-keep interface androidx.core.content.FileProvider$PathStrategy {*;}
