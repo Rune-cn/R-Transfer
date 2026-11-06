@@ -230,4 +230,5 @@ dependencies {
     implementation(libs.focus.api)
 
     implementation(libs.materialKolor)
+    implementation(libs.materialColorUtilities)
 }

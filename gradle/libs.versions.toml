@@ -139,6 +139,9 @@ monetcompat = { module = "com.github.KieronQuinn:MonetCompat", version.ref = "mo
 androidx-palette = { group = "androidx.palette", name = "palette", version = "1.0.0" }
 
 materialKolor = { module = "com.materialkolor:material-kolor-material3", version.ref = "materialKolor" }
+# miuix 的 ThemeController 在 R8 下会引用 com.materialkolor.scheme.*（由 material-kolor 传递的
+# 可选依赖）。显式声明可确保 release 混淆阶段该类在 classpath 上，避免 "Missing class" 失败。
+materialColorUtilities = { module = "com.materialkolor:material-color-utilities", version.ref = "materialKolor" }
 
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junit" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
