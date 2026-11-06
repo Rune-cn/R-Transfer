@@ -232,3 +232,15 @@ dependencies {
     implementation(libs.materialKolor)
     implementation(libs.materialColorUtilities)
 }
+
+/**
+ * 强制 material-color-utilities 走 5.0.1。
+ *
+ * 原因：material-kolor-material3:6.0.0 会传递引入同版本的 color-utilities，
+ * 而 6.0.0 把 com.materialkolor.scheme.DynamicScheme 迁到了 dynamiccolor 包。
+ * miuix 0.9.4 编译期引用的是旧包路径，若被解析成 6.0.0，release 混淆阶段
+ * 就会报 Missing class。Gradle 默认取最高版本，因此这里必须显式强制降级。
+ */
+configurations.configureEach {
+    resolutionStrategy.force("com.materialkolor:material-color-utilities:5.0.1")
+}
