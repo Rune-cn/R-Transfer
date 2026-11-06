@@ -1,4 +1,4 @@
-package app.ai.rune.ziyong.transfer.gateway.service
+package service
 
 import android.app.Notification
 import android.app.PendingIntent
@@ -10,9 +10,10 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import app.ai.rune.ziyong.transfer.AiGatewayApp
-import app.ai.rune.ziyong.transfer.MainActivity
+import app.ai.rune.ziyong.transfer.App
+import app.ai.rune.ziyong.transfer.ui.activity.SettingsActivity
 import app.ai.rune.ziyong.transfer.R
+import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 浏览器登录期间临时拉起的前台服务：只负责把进程抬离「后台 idle」，不碰引擎。
@@ -54,10 +55,10 @@ class LoginWaitService : Service() {
         val open = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java),
+            Intent(this, SettingsActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return NotificationCompat.Builder(this, AiGatewayApp.CHANNEL_ID)
+        return NotificationCompat.Builder(this, App.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_gateway)
             .setContentTitle(getString(R.string.login_wait_title))
             .setContentText(getString(R.string.login_wait_text))

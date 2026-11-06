@@ -1,4 +1,4 @@
-package app.ai.rune.ziyong.transfer.gateway.service
+package service
 
 import android.app.Notification
 import android.app.PendingIntent
@@ -15,15 +15,18 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import app.ai.rune.ziyong.transfer.AiGatewayApp
-import app.ai.rune.ziyong.transfer.MainActivity
+import app.ai.rune.ziyong.transfer.App
+import app.ai.rune.ziyong.transfer.ui.activity.SettingsActivity
 import app.ai.rune.ziyong.transfer.R
-import app.ai.rune.ziyong.transfer.gatewayEngine
+import gatewayEngine
 import dev.aigw.core.gateway.EngineWatchdog
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.InetSocketAddress
 import java.net.Socket
+import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
+import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
+import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 只负责「让进程活着」：网关本身由 UI 侧启动，成功后拉起本服务，
@@ -133,7 +136,7 @@ class GatewayService : Service() {
         Log.i(TAG, "onStartCommand: rebuiltBySystem=$rebuiltBySystem promoted=$promoted started=$started")
         if (started) {
             // 服务活着就代表「希望运行」：这条意图是 force-stop 之后打开应用自动恢复的依据
-            app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setWantRunning(engine.store(), true)
+            KeepAlivePrefs.setWantRunning(engine.store(), true)
             engine.requestLog.info(
                 if (intent == null) "前台服务被系统重建，网关已恢复"
                 else "前台服务已拉起，通知已发布",
@@ -144,7 +147,7 @@ class GatewayService : Service() {
             LiveStatusNotifier.start(
                 context = this,
                 requests = engine.activeRequests,
-                enabled = app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.liveNotificationEnabled(engine.store()),
+                enabled = KeepAlivePrefs.liveNotificationEnabled(engine.store()),
                 log = { engine.requestLog.info(it) },
             )
             startWatchdog()
@@ -165,7 +168,7 @@ class GatewayService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         val engine = runCatching { applicationContext.gatewayEngine }.getOrNull() ?: return
-        if (app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.wantRunning(engine.store())) {
+        if (KeepAlivePrefs.wantRunning(engine.store())) {
             GatewayRestartReceiver.schedule(applicationContext)
             Log.i(TAG, "任务被移除：已布置 2 秒后自愈闹钟")
         }
@@ -284,7 +287,7 @@ class GatewayService : Service() {
     private fun onEngineUnrecoverable() {
         val engine = runCatching { applicationContext.gatewayEngine }.getOrNull()
         // 已经明确放弃：清掉「希望运行」意图，避免下次打开应用又自动把它拉起来
-        engine?.let { app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setWantRunning(it.store(), false) }
+        engine?.let { KeepAlivePrefs.setWantRunning(it.store(), false) }
         Log.w(TAG, "看门狗：连续 $WATCHDOG_MAX_FAILURES 次无法恢复，停止服务")
         engine?.requestLog?.warn(
             "看门狗：连续 $WATCHDOG_MAX_FAILURES 次无法恢复端口监听，已停止前台服务",
@@ -297,7 +300,7 @@ class GatewayService : Service() {
     }
 
     private fun notifyUnrecoverable() {
-        val notification = NotificationCompat.Builder(this, AiGatewayApp.CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, App.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_gateway)
             .setContentTitle(getString(R.string.app_name))
             .setContentText("本地网关已停止：端口无法恢复监听，请打开应用重新启动")
@@ -349,7 +352,7 @@ class GatewayService : Service() {
      * 服务停止时一并移除。未授权时静默跳过，不影响网关运行。
      */
     private fun applyOverlay(engine: dev.aigw.core.gateway.GatewayEngine) {
-        if (!app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.overlayEnabled(engine.store())) return
+        if (!KeepAlivePrefs.overlayEnabled(engine.store())) return
         val shown = FloatingKeepAlive.show(this, "网关 ${engine.settings().port}")
         if (shown) {
             engine.requestLog.info("悬浮窗保活已开启")
@@ -361,12 +364,12 @@ class GatewayService : Service() {
     private fun openAppIntent(): PendingIntent = PendingIntent.getActivity(
         this,
         0,
-        Intent(this, MainActivity::class.java),
+        Intent(this, SettingsActivity::class.java),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
     private fun buildNotification(port: Int): Notification {
-        return NotificationCompat.Builder(this, AiGatewayApp.CHANNEL_ID)
+        return NotificationCompat.Builder(this, App.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_gateway)
             .setContentTitle(getString(R.string.app_name))
             .setContentText("本地网关运行中 · 端口 $port")

@@ -1,4 +1,4 @@
-package app.ai.rune.ziyong.transfer.gateway.service
+package service
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -8,8 +8,11 @@ import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
+import KeepAlivePrefs
+import gatewayEngine
 import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
-import app.ai.rune.ziyong.transfer.gatewayEngine
+import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
+import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 「划掉之后自己活过来」的执行臂。

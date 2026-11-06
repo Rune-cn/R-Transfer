@@ -14,16 +14,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import app.ai.rune.ziyong.transfer.gateway.ApkInstaller
-import app.ai.rune.ziyong.transfer.gateway.KeepAlive
-import app.ai.rune.ziyong.transfer.gateway.KeepAliveStatus
-import app.ai.rune.ziyong.transfer.ui.theme.ThemeMode
+import ApkInstaller
+import KeepAlive
+import KeepAliveStatus
+import app.ai.rune.ziyong.transfer.domain.settings.model.preferences.theme.ThemeMode
 import app.ai.rune.ziyong.transfer.ui.theme.defaultAppColors
 import app.ai.rune.ziyong.transfer.ui.theme.formatHex
 import app.ai.rune.ziyong.transfer.ui.theme.parseHexColor
-import app.ai.rune.ziyong.transfer.gateway.service.GatewayService
-import app.ai.rune.ziyong.transfer.gateway.service.GatewayTileService
-import app.ai.rune.ziyong.transfer.gateway.service.LoginWaitService
+import GatewayService
+import GatewayTileService
+import LoginWaitService
 import dev.aigw.core.gateway.BatchActionResult
 import dev.aigw.core.gateway.BatchProgress
 import dev.aigw.core.gateway.BatchTarget
@@ -479,9 +479,9 @@ class AppViewModel(
                     evidences = engine.sanitizer.evidenceList(),
                     modelExposure = engine.modelExposureSettings(),
                     failover = engine.failoverSettings(),
-                    overlayKeepAlive = app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.overlayEnabled(engine.store()),
-                    liveNotification = app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.liveNotificationEnabled(engine.store()),
-                    startOnBoot = app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.startOnBoot(engine.store()),
+                    overlayKeepAlive = KeepAlivePrefs.overlayEnabled(engine.store()),
+                    liveNotification = KeepAlivePrefs.liveNotificationEnabled(engine.store()),
+                    startOnBoot = KeepAlivePrefs.startOnBoot(engine.store()),
                 )
             }
             _state.value = _state.value.copy(
@@ -714,7 +714,7 @@ class AppViewModel(
                 // stopSelf），这里把服务再拉回来——引擎在跑就必须有服务看管，
                 // 否则又回到「端口开着、无人看管」的孤儿态。onStartCommand 幂等。
                 ContextCompat.startForegroundService(app, Intent(app, GatewayService::class.java))
-                app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setWantRunning(engine.store(), true)
+                KeepAlivePrefs.setWantRunning(engine.store(), true)
             }
             refresh()
             requestTileUpdate()
@@ -722,12 +722,12 @@ class AppViewModel(
     }
 
     /**
-     * 应用打开时恢复上次状态（见 [app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.wantRunning]）。
+     * 应用打开时恢复上次状态（见 [KeepAlivePrefs.wantRunning]）。
      * 只在意图为真、且引擎确实没在跑时动作一次，不会与用户手动操作打架。
      */
     private fun maybeAutoResume() {
         if (engine.isRunning()) return
-        if (!app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.wantRunning(engine.store())) return
+        if (!KeepAlivePrefs.wantRunning(engine.store())) return
         startGateway()
         _state.value = _state.value.copy(notice = "已自动恢复上次的运行状态")
     }
@@ -735,7 +735,7 @@ class AppViewModel(
     fun stopGateway() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { engine.stop() }
-            app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setWantRunning(engine.store(), false)
+            KeepAlivePrefs.setWantRunning(engine.store(), false)
             app.stopService(Intent(app, GatewayService::class.java))
             _state.value = _state.value.copy(notice = "服务已停止")
             refresh()
@@ -784,20 +784,20 @@ class AppViewModel(
      */
     fun setOverlayKeepAlive(enabled: Boolean) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setOverlayEnabled(engine.store(), enabled) }
+            withContext(Dispatchers.IO) { KeepAlivePrefs.setOverlayEnabled(engine.store(), enabled) }
             if (enabled) {
                 if (!engine.isRunning()) {
                     notice("已开启，悬浮窗将在网关服务启动后显示")
                 } else {
                     val label = "网关 ${engine.settings().port}"
-                    val shown = app.ai.rune.ziyong.transfer.gateway.service.FloatingKeepAlive.show(app, label)
+                    val shown = FloatingKeepAlive.show(app, label)
                     notice(
                         if (shown) "悬浮窗保活已开启"
                         else "已开启，但缺少「显示在其他应用上层」权限，请在上方授权",
                     )
                 }
             } else {
-                app.ai.rune.ziyong.transfer.gateway.service.FloatingKeepAlive.hide(app)
+                FloatingKeepAlive.hide(app)
                 notice("悬浮窗保活已关闭")
             }
             refresh()
@@ -805,7 +805,7 @@ class AppViewModel(
     }
 
     /**
-     * 开关「开机自动恢复」：落盘后由 [app.ai.rune.ziyong.transfer.gateway.service.GatewayBootReceiver] 在
+     * 开关「开机自动恢复」：落盘后由 [GatewayBootReceiver] 在
      * BOOT_COMPLETED / MY_PACKAGE_REPLACED 时读取并拉起前台服务。
      *
      * 只影响「下次开机」；当前这次运行不受影响，所以这里不碰服务。
@@ -813,7 +813,7 @@ class AppViewModel(
     fun setStartOnBoot(enabled: Boolean) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setStartOnBoot(engine.store(), enabled)
+                KeepAlivePrefs.setStartOnBoot(engine.store(), enabled)
             }
             notice(if (enabled) "已开启：手机重启或应用更新后自动恢复网关" else "已关闭：重启后不会自动恢复网关")
             refresh()
@@ -825,9 +825,9 @@ class AppViewModel(
      */
     fun reapplyOverlayIfEnabled() {
         if (!engine.isRunning()) return
-        if (!app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.overlayEnabled(engine.store())) return
-        if (app.ai.rune.ziyong.transfer.gateway.service.FloatingKeepAlive.isShowing()) return
-        app.ai.rune.ziyong.transfer.gateway.service.FloatingKeepAlive.show(app, "网关 ${engine.settings().port}")
+        if (!KeepAlivePrefs.overlayEnabled(engine.store())) return
+        if (FloatingKeepAlive.isShowing()) return
+        FloatingKeepAlive.show(app, "网关 ${engine.settings().port}")
     }
 
     /**
@@ -840,9 +840,9 @@ class AppViewModel(
         _state.value = _state.value.copy(liveNotification = enabled)
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setLiveNotificationEnabled(engine.store(), enabled)
+                KeepAlivePrefs.setLiveNotificationEnabled(engine.store(), enabled)
             }
-            app.ai.rune.ziyong.transfer.gateway.service.LiveStatusNotifier.setEnabled(app, enabled)
+            LiveStatusNotifier.setEnabled(app, enabled)
             notice(if (enabled) "实时状态通知已开启" else "实时状态通知已关闭")
         }
     }

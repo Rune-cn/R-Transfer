@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.ai.rune.ziyong.transfer.di
 
+import app.ai.rune.ziyong.transfer.App
 import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.gateway.EncryptedKeyValueStore
 import app.ai.rune.ziyong.transfer.gateway.GatewayHolder
@@ -45,7 +46,7 @@ val gatewayModule = module {
      * `Context.gatewayEngine` → `App.gateway` 这条路径；这里把它注册进容器，
      * 让 UI 侧与服务侧拿到的是**同一个**实例，避免出现两套账号池。
      */
-    single { (androidApplication() as app.ai.rune.ziyong.transfer.App).gateway }
+    single<GatewayHolder> { (androidApplication() as App).gateway }
 
     // AppViewModel 需要 Application（用于启动服务/装 APK）与已有的唯一引擎实例；
     // 两者都已在容器里，Koin 按构造参数自动注入

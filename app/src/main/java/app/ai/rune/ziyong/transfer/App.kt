@@ -9,6 +9,7 @@ import android.os.Build
 import com.kieronquinn.monetcompat.core.MonetCompat
 import app.ai.rune.ziyong.transfer.core.crash.CrashHandler
 import app.ai.rune.ziyong.transfer.core.env.AppConfig
+import app.ai.rune.ziyong.transfer.gateway.GatewayHolder
 import app.ai.rune.ziyong.transfer.di.init.appModules
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger

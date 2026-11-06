@@ -1,4 +1,4 @@
-package app.ai.rune.ziyong.transfer.gateway.service
+package service
 
 import android.content.Context
 import android.content.Intent
@@ -10,9 +10,10 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
 import android.widget.TextView
-import app.ai.rune.ziyong.transfer.MainActivity
+import app.ai.rune.ziyong.transfer.ui.activity.SettingsActivity
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 「悬浮窗保活」：在屏幕上留一个极小的悬浮标签。
@@ -66,7 +67,7 @@ object FloatingKeepAlive {
                 setOnClickListener {
                     runCatching {
                         app.startActivity(
-                            Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            Intent(app, SettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }
                 }

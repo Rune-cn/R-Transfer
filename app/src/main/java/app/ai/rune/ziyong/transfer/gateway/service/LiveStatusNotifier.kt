@@ -1,4 +1,4 @@
-package app.ai.rune.ziyong.transfer.gateway.service
+package service
 
 import android.app.Notification
 import android.app.NotificationManager
@@ -9,12 +9,13 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.app.NotificationManagerCompat
-import app.ai.rune.ziyong.transfer.AiGatewayApp
-import app.ai.rune.ziyong.transfer.MainActivity
+import app.ai.rune.ziyong.transfer.App
+import app.ai.rune.ziyong.transfer.ui.activity.SettingsActivity
 import app.ai.rune.ziyong.transfer.R
 import dev.aigw.core.gateway.ActiveRequest
 import dev.aigw.core.gateway.ActiveRequests
 import java.util.Locale
+import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 「实时状态」通知：把网关当前在途请求显示成 Android 16 的 Live Updates 常驻通知。
@@ -181,11 +182,11 @@ object LiveStatusNotifier {
         val open = PendingIntent.getActivity(
             context,
             0,
-            Intent(context, MainActivity::class.java),
+            Intent(context, SettingsActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        val builder = Notification.Builder(context, AiGatewayApp.LIVE_CHANNEL_ID)
+        val builder = Notification.Builder(context, App.LIVE_CHANNEL_ID)
             // 官方实时更新要件：ongoing + contentTitle，且不得是 group summary / colorized / 自定义 RemoteViews
             .setOngoing(true)
             .setSmallIcon(R.drawable.ic_stat_gateway)

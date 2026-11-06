@@ -32,9 +32,6 @@ data class AppColors(
     val goldEnd: Color,
 )
 
-/** 网关侧 ThemeMode 与模板 ThemeMode 是同一个枚举，这里显式转出以便调用方少写全限定名。 */
-typealias GatewayThemeMode = ThemeMode
-
 /**
  * 解析 `#RRGGBB` 或 `RRGGBB`（大小写不敏感）为不透明颜色；非法输入返回 null。
  *

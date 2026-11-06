@@ -1,11 +1,14 @@
-package app.ai.rune.ziyong.transfer.gateway.service
+package service
 
 import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import androidx.core.content.ContextCompat
-import app.ai.rune.ziyong.transfer.gatewayEngine
+import gatewayEngine
+import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
+import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
+import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 控制中心的网关开关磁贴。
@@ -24,7 +27,7 @@ class GatewayTileService : TileService() {
         val engine = runCatching { gatewayEngine }.getOrNull() ?: return
         val tile = qsTile ?: return
         if (engine.isRunning()) {
-            app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setWantRunning(engine.store(), false)
+            KeepAlivePrefs.setWantRunning(engine.store(), false)
             engine.stop()
             applicationContext.stopService(Intent(applicationContext, GatewayService::class.java))
             engine.requestLog.info("控制中心磁贴停止了网关")
@@ -38,7 +41,7 @@ class GatewayTileService : TileService() {
             if (!ok) {
                 applicationContext.stopService(Intent(applicationContext, GatewayService::class.java))
             }
-            if (ok) app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs.setWantRunning(engine.store(), true)
+            if (ok) KeepAlivePrefs.setWantRunning(engine.store(), true)
             engine.requestLog.info(if (ok) "控制中心磁贴启动了网关" else "磁贴启动网关失败")
         }
         updateTile()
