@@ -69,12 +69,10 @@ jobs:
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_core_tests)
         run: ./gradlew :core:test --stacktrace
 
+      # 只出 Stable flavor：Unstable/Preview 是模板遗留的版本梯度标记，
+      # 三个都构建会产出三份几乎相同的 APK（约 78MB），对使用者没有价值。
       - name: 构建 Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
-
-      # 打印实际产物路径：flavor 目录结构变化时能立刻看出问题
-      - name: 列出构建产物
-        run: find app/build/outputs/apk -name '*.apk' -type f -print 2>/dev/null || echo "(未找到 APK)"
+        run: ./gradlew :app:assembleStableDebug --stacktrace
 
       - name: 上传 Debug APK
         uses: actions/upload-artifact@v4
@@ -82,7 +80,7 @@ jobs:
           name: r-transfer-debug
           # 工程有 productFlavors（Unstable/Preview/Stable）：AGP 的目录顺序是
           # apk/<flavor>/<buildType>/，flavor 在前、buildType 在后
-          path: app/build/outputs/apk/*/debug/*.apk
+          path: app/build/outputs/apk/Stable/debug/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -111,14 +109,14 @@ jobs:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease --stacktrace
+        run: ./gradlew :app:assembleStableRelease --stacktrace
 
       - name: 上传 Release APK
         if: steps.signing.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: r-transfer-release
-          path: app/build/outputs/apk/*/release/*.apk
+          path: app/build/outputs/apk/Stable/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
