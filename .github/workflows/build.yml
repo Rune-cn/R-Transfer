@@ -72,12 +72,18 @@ jobs:
       - name: 构建 Debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      # 打印实际产物路径：flavor 目录结构变化时能立刻看出问题
+      - name: 列出构建产物
+        run: find app/build/outputs/apk -name '*.apk' -type f -print 2>/dev/null || echo "(未找到 APK)"
+
       - name: 上传 Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: r-transfer-debug
           # 工程有 productFlavors（Unstable/Preview/Stable），APK 落在 build type 下的 flavor 子目录
-          path: app/build/outputs/apk/debug/**/*.apk
+          path: |
+            app/build/outputs/apk/debug/*/*.apk
+            app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -113,7 +119,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: r-transfer-release
-          path: app/build/outputs/apk/release/**/*.apk
+          path: |
+            app/build/outputs/apk/release/*/*.apk
+            app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
