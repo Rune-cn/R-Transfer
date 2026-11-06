@@ -1,4 +1,4 @@
-package service
+package app.ai.rune.ziyong.transfer.gateway.service
 
 import android.content.Intent
 import android.os.Build

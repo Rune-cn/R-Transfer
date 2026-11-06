@@ -32,11 +32,9 @@ fun dynamicColorScheme(
         PaletteStyle.Monochrome -> MaterialKolorPaletteStyle.Monochrome
         PaletteStyle.Fidelity -> MaterialKolorPaletteStyle.Fidelity
         PaletteStyle.Content -> MaterialKolorPaletteStyle.Content
-        PaletteStyle.Cmf -> MaterialKolorPaletteStyle.Cmf()
     }
 
     val specVersion = when (style.effectiveSpec(colorSpec)) {
-        ThemeColorSpec.SPEC_2026 -> ColorSpec.SpecVersion.SPEC_2026
         ThemeColorSpec.SPEC_2025 -> ColorSpec.SpecVersion.SPEC_2025
         ThemeColorSpec.SPEC_2021 -> ColorSpec.SpecVersion.SPEC_2021
     }

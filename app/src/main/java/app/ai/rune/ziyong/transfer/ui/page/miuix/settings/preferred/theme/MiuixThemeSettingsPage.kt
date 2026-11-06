@@ -549,8 +549,9 @@ fun MiuixColorSpecWidget(
     val activeSpec = currentPaletteStyle.effectiveSpec(currentColorSpec)
     val descriptionText = if (availableSpecs.size == 1) {
         stringResource(
+            // miuix 0.9.4 稳定版只提供 2021 / 2025 两套色规，单一可用时按 2025 文案提示
             id = when (activeSpec) {
-                ThemeColorSpec.SPEC_2026 -> R.string.theme_settings_color_spec_only_2026
+                ThemeColorSpec.SPEC_2025 -> R.string.theme_settings_color_spec_only_2025
                 else -> R.string.theme_settings_color_spec_only_2021
             },
         )

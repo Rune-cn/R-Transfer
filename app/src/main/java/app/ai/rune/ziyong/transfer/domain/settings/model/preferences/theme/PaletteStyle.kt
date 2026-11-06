@@ -16,7 +16,6 @@ enum class PaletteStyle(val displayName: String, val desc: String = "") {
     val supportedSpecs: List<ThemeColorSpec>
         get() = when (this) {
             TonalSpot, Neutral, Vibrant, Expressive -> listOf(ThemeColorSpec.SPEC_2021, ThemeColorSpec.SPEC_2025)
-            Cmf -> listOf(ThemeColorSpec.SPEC_2026)
             else -> listOf(ThemeColorSpec.SPEC_2021)
         }
 
