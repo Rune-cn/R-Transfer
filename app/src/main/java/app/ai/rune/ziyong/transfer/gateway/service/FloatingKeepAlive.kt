@@ -13,7 +13,6 @@ import android.widget.TextView
 import app.ai.rune.ziyong.transfer.ui.activity.SettingsActivity
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 「悬浮窗保活」：在屏幕上留一个极小的悬浮标签。

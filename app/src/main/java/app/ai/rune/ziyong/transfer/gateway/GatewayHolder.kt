@@ -1,6 +1,7 @@
 package app.ai.rune.ziyong.transfer.gateway
 
 import android.app.Application
+import app.ai.rune.ziyong.transfer.App
 import android.content.Context
 import dev.aigw.core.gateway.GatewayEngine
 import dev.aigw.core.store.KeyValueStore

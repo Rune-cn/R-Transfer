@@ -5,10 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
-import gatewayEngine
-import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
-import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 开机 / 应用更新后按需恢复网关。

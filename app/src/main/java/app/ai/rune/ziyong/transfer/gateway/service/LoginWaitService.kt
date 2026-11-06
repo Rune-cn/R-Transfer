@@ -13,7 +13,6 @@ import androidx.core.content.ContextCompat
 import app.ai.rune.ziyong.transfer.App
 import app.ai.rune.ziyong.transfer.ui.activity.SettingsActivity
 import app.ai.rune.ziyong.transfer.R
-import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 浏览器登录期间临时拉起的前台服务：只负责把进程抬离「后台 idle」，不碰引擎。

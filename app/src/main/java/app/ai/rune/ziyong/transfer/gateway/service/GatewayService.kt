@@ -18,7 +18,6 @@ import androidx.core.app.NotificationManagerCompat
 import app.ai.rune.ziyong.transfer.App
 import app.ai.rune.ziyong.transfer.ui.activity.SettingsActivity
 import app.ai.rune.ziyong.transfer.R
-import gatewayEngine
 import dev.aigw.core.gateway.EngineWatchdog
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -26,7 +25,6 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
-import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 只负责「让进程活着」：网关本身由 UI 侧启动，成功后拉起本服务，

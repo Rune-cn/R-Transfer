@@ -5,10 +5,8 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import androidx.core.content.ContextCompat
-import gatewayEngine
 import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
-import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 控制中心的网关开关磁贴。

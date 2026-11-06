@@ -67,6 +67,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import app.ai.rune.ziyong.transfer.gateway.service.FloatingKeepAlive
+import app.ai.rune.ziyong.transfer.gateway.service.LiveStatusNotifier
 
 /** 验证码重发间隔（秒）：上游有频率限制，连点只会被拒。 */
 private const val SMS_RESEND_INTERVAL_MS = 60_000L

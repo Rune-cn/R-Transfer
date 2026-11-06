@@ -15,7 +15,6 @@ import app.ai.rune.ziyong.transfer.R
 import dev.aigw.core.gateway.ActiveRequest
 import dev.aigw.core.gateway.ActiveRequests
 import java.util.Locale
-import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 「实时状态」通知：把网关当前在途请求显示成 Android 16 的 Live Updates 常驻通知。

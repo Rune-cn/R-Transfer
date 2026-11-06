@@ -9,10 +9,7 @@ import android.os.Build
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
-import gatewayEngine
-import app.ai.rune.ziyong.transfer.gateway.KeepAlivePrefs
 import app.ai.rune.ziyong.transfer.gateway.gatewayEngine
-import app.ai.rune.ziyong.transfer.gateway.service
 
 /**
  * 「划掉之后自己活过来」的执行臂。
