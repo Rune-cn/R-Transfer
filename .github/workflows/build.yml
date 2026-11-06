@@ -80,10 +80,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: r-transfer-debug
-          # 工程有 productFlavors（Unstable/Preview/Stable），APK 落在 build type 下的 flavor 子目录
-          path: |
-            app/build/outputs/apk/debug/*/*.apk
-            app/build/outputs/apk/debug/*.apk
+          # 工程有 productFlavors（Unstable/Preview/Stable）：AGP 的目录顺序是
+          # apk/<flavor>/<buildType>/，flavor 在前、buildType 在后
+          path: app/build/outputs/apk/*/debug/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -119,9 +118,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: r-transfer-release
-          path: |
-            app/build/outputs/apk/release/*/*.apk
-            app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
