@@ -47,6 +47,14 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.ui.Alignment
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 
 /**
  * 供应商详情：登录入口 + 账号管理。
@@ -86,9 +94,9 @@ fun MiuixProviderDetailPage(
                 title = provider?.displayName ?: providerId,
                 subtitle = "${accounts.size} 个账号 · 可用 ${accounts.count { it.usable }} 个",
                 navigationIcon = {
-                    top.yukonga.miuix.kmp.basic.IconButton(onClick = onBack) {
-                        top.yukonga.miuix.kmp.basic.Icon(
-                            imageVector = top.yukonga.miuix.kmp.icon.MiuixIcons.Regular.Back,
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = MiuixIcons.Regular.Back,
                             contentDescription = "返回",
                         )
                     }
@@ -186,9 +194,9 @@ private fun SmsLoginForm(providerId: String, viewModel: AppViewModel) {
     var countdown by remember { mutableStateOf(0) }
 
     // 倒计时：上游有频率限制，连点只会被拒
-    androidx.compose.runtime.LaunchedEffect(countdown) {
+    LaunchedEffect(countdown) {
         if (countdown > 0) {
-            kotlinx.coroutines.delay(1_000)
+            delay(1_000)
             countdown -= 1
         }
     }
@@ -309,7 +317,7 @@ private fun AccountBlock(
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
@@ -365,7 +373,7 @@ private fun AccountBlock(
                 onClick = { confirmDelete = true },
                 modifier = Modifier.weight(1f),
                 minWidth = 0.dp,
-                colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColors(
+                colors = ButtonDefaults.textButtonColors(
                     textColor = MiuixTheme.colorScheme.error,
                 ),
             )
@@ -399,7 +407,7 @@ private fun AccountBlock(
                             viewModel.removeAccount(provider.id, account.uid)
                         },
                         modifier = Modifier.weight(1f),
-                        colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColors(
+                        colors = ButtonDefaults.textButtonColors(
                             textColor = MiuixTheme.colorScheme.error,
                         ),
                     )
