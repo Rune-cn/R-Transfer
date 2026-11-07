@@ -1410,7 +1410,34 @@ class AppViewModel(
                 },
                 { error -> _state.value = _state.value.copy(notice = error.message ?: "操作失败") },
             )
-            refresh()
+            // 只刷新批量动作真正会变的部分（账号额度、可用数），
+            // 不要调 refresh()：它会整体替换 state，导致首页绑定 running 的开关
+            // 在批量过程中被反复重建，视觉上表现为「开关抖一下」。
+            refreshPoolAndCredits()
+        }
+    }
+
+    /**
+     * 轻量刷新：只更新账号池与额度相关字段，不动 running / port 等运行态。
+     *
+     * 批量刷新额度会把每个账号的余额改掉，但网关本身没启停；
+     * 用 [refresh] 会连 `running = engine.isRunning()` 一起重算，
+     * 让绑定了 `running` 的控件（首页总开关）在动画中途被重建而抖动。
+     */
+    private fun refreshPoolAndCredits() {
+        viewModelScope.launch {
+            val snapshot = withContext(Dispatchers.IO) {
+                Triple(
+                    engine.pool.summary(),
+                    engine.accounts(),
+                    engine.callLogStore.todayStats(System.currentTimeMillis()),
+                )
+            }
+            _state.value = _state.value.copy(
+                pool = snapshot.first,
+                accounts = snapshot.second,
+                today = snapshot.third,
+            )
         }
     }
 

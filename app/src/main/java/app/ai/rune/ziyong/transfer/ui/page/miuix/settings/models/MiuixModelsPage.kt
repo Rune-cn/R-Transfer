@@ -2,7 +2,6 @@
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.models
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +10,8 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,26 +23,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.gateway.AppUiState
+import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.gateway.ModelLoadState
 import app.ai.rune.ziyong.transfer.gateway.formatTokens
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceBlock
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SwitchRow
 import app.ai.rune.ziyong.transfer.ui.theme.getMiuixAppBarColor
 import app.ai.rune.ziyong.transfer.ui.theme.miuixBlurEffect
 import app.ai.rune.ziyong.transfer.ui.theme.rememberMiuixBlurBackdrop
 import dev.aigw.core.provider.RoutedModel
 import org.koin.androidx.compose.koinViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
@@ -50,19 +54,12 @@ import top.yukonga.miuix.kmp.icon.extended.Refresh
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import androidx.compose.ui.state.ToggleableState
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
-import androidx.compose.foundation.layout.padding
 
 /**
  * 模型页：网关对外暴露的模型清单。
  *
- * 这一页的核心用途是「告诉使用者模型名怎么写」——客户端里填的就是
- * `routePrefix/model.id`（即 [RoutedModel.fullId]）。因此每条都把完整
- * 模型名放在最显眼的位置，而不是只显示人类可读的展示名。
- *
- * 分组按 routePrefix：区域型供应商（如国内/国际版）会各成一组，
- * 因为它们的模型名前缀不同，混在一起会让使用者分不清该填哪个。
+ * 排版对齐模板「关于」页——**每个供应商一张卡，卡内逐行列出模型**，
+ * 而不是「每个模型一张卡」（那样一屏只放得下三四个，滚动起来非常碎）。
  */
 @Composable
 fun MiuixModelsPage(
@@ -77,11 +74,9 @@ fun MiuixModelsPage(
     val backdrop = rememberMiuixBlurBackdrop(enableBlur)
     var collapsed by remember { mutableStateOf(emptySet<String>()) }
 
-    // 分组必须在 Composable 作用域里算好再交给 LazyListScope：
-    // LazyListScope 的 lambda 不是 @Composable 上下文，不能在里面调用 remember。
+    // 分组必须在 Composable 作用域算好：LazyListScope 的 lambda 不是 @Composable 上下文
     val grouped = remember(uiState.models) { uiState.models.groupBy { it.routePrefix } }
 
-    // 首次进入拉一次目录：供应商多时拉取耗时明显，不该让冷启动付这笔开销
     LaunchedEffect(Unit) { viewModel.ensureModelsLoaded() }
 
     Scaffold(
@@ -92,7 +87,7 @@ fun MiuixModelsPage(
                 color = backdrop.getMiuixAppBarColor(),
                 title = title,
                 subtitle = subtitleOf(uiState),
-                navigationIcon = {},
+                scrollBehavior = scrollBehavior,
                 actions = {
                     IconButton(onClick = { viewModel.refreshModels(forceRefresh = true) }) {
                         Icon(
@@ -102,7 +97,6 @@ fun MiuixModelsPage(
                         )
                     }
                 },
-                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
@@ -114,23 +108,22 @@ fun MiuixModelsPage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item { Spacer(modifier = Modifier.size(12.dp)) }
+
+            item { SmallTitle("说明") }
             item {
-                PreferenceCard() {
-                    BasicComponent(
-                        title = "模型名怎么填",
-                        summary = "客户端里填「供应商前缀/模型 id」，例如 trae/solo-1.0；下方每条都给出了完整写法",
-                    )
-                    SwitchRowInline(
+                PreferenceCard {
+                    PreferenceHint("客户端里填「供应商前缀/模型 id」，例如 trae/solo-1.0；下方每组都标了前缀。")
+                    SwitchRow(
                         title = "只暴露勾选的模型",
-                        subtitle = "开启后 /v1/models 仅返回下方勾选的模型",
+                        summary = "开启后 /v1/models 仅返回下方勾选的模型",
                         checked = uiState.modelExposure.filterEnabled,
                         onCheckedChange = {
                             viewModel.updateModelExposure(
@@ -142,12 +135,10 @@ fun MiuixModelsPage(
             }
 
             if (uiState.modelsError.isNotEmpty()) {
+                item { SmallTitle("拉取失败") }
                 item {
-                    PreferenceCard() {
-                        BasicComponent(
-                            title = "拉取失败",
-                            summary = uiState.modelsError,
-                        )
+                    PreferenceCard {
+                        PreferenceHint(uiState.modelsError, error = true)
                     }
                 }
             }
@@ -155,13 +146,12 @@ fun MiuixModelsPage(
             if (uiState.models.isEmpty()) {
                 item { SmallTitle("模型") }
                 item {
-                    PreferenceCard() {
-                        BasicComponent(
-                            title = if (uiState.modelsLoading) "正在拉取模型目录…" else "还没有模型",
-                            summary = if (uiState.modelsLoading) {
-                                "各供应商就绪后会增量出现在这里"
+                    PreferenceCard {
+                        PreferenceHint(
+                            if (uiState.modelsLoading) {
+                                "正在拉取模型目录，各供应商就绪后会增量出现…"
                             } else {
-                                "无可用账号的供应商不会返回模型；可点右上角刷新重试"
+                                "还没有模型。无可用账号的供应商不会返回模型；可点右上角刷新重试。"
                             },
                         )
                     }
@@ -169,27 +159,38 @@ fun MiuixModelsPage(
             } else {
                 for ((routePrefix, models) in grouped) {
                     val isCollapsed = routePrefix in collapsed
-                    item(key = "header-$routePrefix") {
-                        GroupHeader(
-                            title = models.firstOrNull()?.providerName ?: routePrefix,
-                            prefix = routePrefix,
-                            count = models.size,
-                            collapsed = isCollapsed,
-                            onToggle = {
-                                collapsed = if (isCollapsed) collapsed - routePrefix else collapsed + routePrefix
-                            },
-                        )
+                    item(key = "title-$routePrefix") {
+                        SmallTitle(models.firstOrNull()?.providerName ?: routePrefix)
                     }
-                    if (!isCollapsed) {
-                        items(models.size, key = { models[it].fullId }) { index ->
-                            ModelRow(
-                                model = models[index],
-                                exposureEnabled = uiState.modelExposure.filterEnabled,
-                                exposed = uiState.modelExposure.allows(models[index].fullId),
-                                onToggleExposed = {
-                                    viewModel.toggleModelExposed(models[index].fullId, it)
+                    item(key = "card-$routePrefix") {
+                        PreferenceCard {
+                            NavigationRow(
+                                title = "前缀 $routePrefix/",
+                                summary = if (isCollapsed) {
+                                    "${models.size} 个模型 · 点击展开"
+                                } else {
+                                    "${models.size} 个模型 · 点击收起"
+                                },
+                                onClick = {
+                                    collapsed = if (isCollapsed) {
+                                        collapsed - routePrefix
+                                    } else {
+                                        collapsed + routePrefix
+                                    }
                                 },
                             )
+                            if (!isCollapsed) {
+                                for (model in models) {
+                                    ModelRow(
+                                        model = model,
+                                        exposureEnabled = uiState.modelExposure.filterEnabled,
+                                        exposed = uiState.modelExposure.allows(model.fullId),
+                                        onToggleExposed = {
+                                            viewModel.toggleModelExposed(model.fullId, it)
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -212,45 +213,12 @@ private fun subtitleOf(state: AppUiState): String {
     }
 }
 
-/** 分组头：折叠 + 供应商名 + 模型前缀 + 数量。 */
-@Composable
-private fun GroupHeader(
-    title: String,
-    prefix: String,
-    count: Int,
-    collapsed: Boolean,
-    onToggle: () -> Unit,
-) {
-    PreferenceCard(onClick = onToggle) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MiuixTheme.textStyles.subtitle,
-                    color = MiuixTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = "前缀 $prefix/ · $count 个",
-                    style = MiuixTheme.textStyles.footnote2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
-            }
-            Text(
-                text = if (collapsed) "展开" else "收起",
-                style = MiuixTheme.textStyles.footnote1,
-                color = MiuixTheme.colorScheme.primary,
-            )
-        }
-    }
-}
-
-/** 单个模型：完整模型名 + 展示名/上下文 + 开放名单勾选。 */
+/**
+ * 单个模型：卡内的一行（不是一张卡）。
+ *
+ * 完整模型名放主标题位（用户要复制/输入的就是它），
+ * 展示名与上下文放副标题位，能力标签只在供应商明确给出时才显示。
+ */
 @Composable
 private fun ModelRow(
     model: RoutedModel,
@@ -258,47 +226,44 @@ private fun ModelRow(
     exposed: Boolean,
     onToggleExposed: (Boolean) -> Unit,
 ) {
-    PreferenceCard {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (exposureEnabled) {
-                Checkbox(
-                    state = if (exposed) ToggleableState.On else ToggleableState.Off,
-                    onClick = { onToggleExposed(!exposed) },
-                )
-            }
-            Column(Modifier.weight(1f)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (exposureEnabled) {
+            Checkbox(
+                state = if (exposed) ToggleableState.On else ToggleableState.Off,
+                onClick = { onToggleExposed(!exposed) },
+            )
+        }
+        PreferenceBlock(modifier = Modifier.weight(1f)) {
+            Text(
+                text = model.fullId,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = buildString {
+                    append(model.model.name)
+                    if (model.model.contextWindow > 0) {
+                        append(" · 上下文 ")
+                        append(formatTokens(model.model.contextWindow))
+                    }
+                    if (model.cached) append(" · 缓存目录")
+                },
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            val tags = capabilityTags(model)
+            if (tags.isNotEmpty()) {
                 Text(
-                    text = model.fullId,
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = buildString {
-                        append(model.model.name)
-                        if (model.model.contextWindow > 0) {
-                            append(" · 上下文 ")
-                            append(formatTokens(model.model.contextWindow))
-                        }
-                        if (model.cached) append(" · 缓存目录")
-                    },
+                    text = tags.joinToString(" · "),
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
-                // 能力标记只在供应商明确给出时才显示（不同供应商的 key 命名不一致）
-                val tags = capabilityTags(model)
-                if (tags.isNotEmpty()) {
-                    Text(
-                        text = tags.joinToString(" · "),
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
-                }
             }
         }
     }
@@ -324,34 +289,5 @@ private fun capabilityTags(model: RoutedModel): List<String> {
         if (flag("tools", "tool_call", "toolcall")) add("工具")
         extra["maxOutput"]?.takeIf { it.isNotBlank() }?.let { add("输出上限 $it") }
         extra["rate"]?.takeIf { it.isNotBlank() }?.let { add("倍率 $it") }
-    }
-}
-
-/** 行内开关（标题 + 说明 + Switch），与页面其他行保持同一栅格。 */
-@Composable
-private fun SwitchRowInline(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MiuixTheme.textStyles.subtitle,
-                color = MiuixTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = subtitle,
-                style = MiuixTheme.textStyles.footnote2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

@@ -66,6 +66,8 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits.MiuixCreditsPa
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.security.MiuixSecurityPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.resilience.MiuixResiliencePage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.findActivity
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 
 @Composable
 fun MiuixPreferredPage(
@@ -219,43 +221,50 @@ fun MiuixPreferredPage(
             overscrollEffect = null,
         ) {
             item { Spacer(modifier = Modifier.size(12.dp)) }
-            item { SmallTitle("网关") }
+            // 网关分组：状态用只读行，入口用 NavigationRow（自带右箭头，与模板一致）
+            item { SmallTitle("网关状态") }
             item {
-                Card(
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 12.dp),
-                ) {
-                    BasicComponent(
+                PreferenceCard {
+                    NavigationRow(
                         title = "运行状态",
                         summary = if (gateway.running) {
                             "运行中 · 监听 :${gateway.port}"
                         } else {
                             "已停止 · 端口未监听"
                         },
+                        onClick = {},
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "接入地址",
                         summary = gateway.localUrl.ifEmpty { "http://127.0.0.1:${gateway.port}/v1" },
+                        onClick = {},
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "账号池",
                         summary = "${gateway.pool.total} 个账号 · 可用 ${gateway.pool.usable} 个",
+                        onClick = {},
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "聚合模型",
                         summary = when {
                             gateway.modelsError.isNotEmpty() -> "拉取失败：${gateway.modelsError}"
                             gateway.models.isEmpty() -> "尚未拉取"
                             else -> "共 ${gateway.models.size} 个"
                         },
+                        onClick = {},
                     )
-                    BasicComponent(
+                }
+            }
+
+            item { SmallTitle("网关设置") }
+            item {
+                PreferenceCard {
+                    NavigationRow(
                         title = "接入设置",
                         summary = "端口、API Key 与客户端要填的地址",
                         onClick = { openEndpoints = true },
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "保活与权限",
                         summary = if (gateway.keepAlive?.allGood == true) {
                             "系统条件已就绪"
@@ -264,7 +273,7 @@ fun MiuixPreferredPage(
                         },
                         onClick = { openKeepAlive = true },
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "并发与容错",
                         summary = buildString {
                             append(
@@ -279,7 +288,7 @@ fun MiuixPreferredPage(
                         },
                         onClick = { openResilience = true },
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "安全防护",
                         summary = buildString {
                             append(if (gateway.security.sanitizeEnabled) "脱敏开启" else "脱敏关闭")
@@ -294,7 +303,7 @@ fun MiuixPreferredPage(
                         },
                         onClick = { openSecurity = true },
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "额度中心",
                         summary = if (gateway.pool.creditsKnown > 0) {
                             "已知额度 ${gateway.pool.totalCredits} · 按供应商查看明细"
@@ -303,7 +312,7 @@ fun MiuixPreferredPage(
                         },
                         onClick = { openCredits = true },
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "账号导入导出",
                         summary = "换机与备份：共 ${gateway.pool.total} 个账号（含凭证，请勿外传）",
                         onClick = { openTransfer = true },
