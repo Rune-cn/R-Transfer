@@ -31,8 +31,6 @@ import app.ai.rune.ziyong.transfer.ui.theme.rememberMiuixBlurBackdrop
 import dev.aigw.core.gateway.CustomProviderConfig
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -51,7 +49,6 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.basic.Switch
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.CompactButton
 
 /**
  * 自定义供应商的新建 / 编辑。
@@ -222,7 +219,6 @@ fun MiuixCustomProviderPage(
                     },
                     enabled = keyValid && baseUrl.isNotBlank(),
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColorsPrimary(),
                 )
             }
 
@@ -232,7 +228,6 @@ fun MiuixCustomProviderPage(
                         text = "删除该供应商",
                         onClick = { confirmDelete = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(textColor = MiuixTheme.colorScheme.error),
                     )
                 }
             }
@@ -255,13 +250,14 @@ fun MiuixCustomProviderPage(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CompactButton(
+                    TextButton(
                         text = "取消",
                         onClick = { confirmDelete = false },
+                        modifier = Modifier.weight(1f),
                     )
-                    CompactButton(
+                    TextButton(
                         text = "删除",
-                        danger = true,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             confirmDelete = false
                             viewModel.removeCustomProvider(existing.key)

@@ -33,7 +33,6 @@ import dev.aigw.core.provider.AuthKind
 import dev.aigw.core.provider.ProviderCapability
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -48,7 +47,6 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import androidx.compose.ui.Alignment
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -57,7 +55,6 @@ import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.icon.extended.Edit
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.CompactButton
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.ButtonRow
 
 /**
@@ -246,9 +243,10 @@ private fun SmsLoginForm(providerId: String, viewModel: AppViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
         ButtonRow {
-            CompactButton(
+            TextButton(
                 text = if (countdown > 0) "${countdown}s 后重发" else "发送验证码",
                 enabled = phone.isNotBlank() && countdown == 0,
+                modifier = Modifier.weight(1f),
                 onClick = {
                     countdown = 60
                     viewModel.sendSmsCode(providerId, phone.trim(), ccode.trim()) { error ->
@@ -257,10 +255,10 @@ private fun SmsLoginForm(providerId: String, viewModel: AppViewModel) {
                     }
                 },
             )
-            CompactButton(
+            TextButton(
                 text = "登录",
-                primary = true,
                 enabled = phone.isNotBlank() && code.isNotBlank(),
+                modifier = Modifier.weight(1f),
                 onClick = { viewModel.smsLogin(providerId, phone.trim(), code.trim(), ccode.trim()) { } },
             )
         }
@@ -375,15 +373,16 @@ private fun AccountBlock(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (ProviderCapability.CREDIT_REFRESH in provider.capabilities) {
-                CompactButton(
+                TextButton(
                     text = "刷新额度",
                     onClick = { viewModel.refreshCredits(provider.id, account.uid) },
+                    modifier = Modifier.weight(1f),
                 )
             }
-            CompactButton(
+            TextButton(
                 text = "删除",
                 onClick = { confirmDelete = true },
-                danger = true,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -401,13 +400,14 @@ private fun AccountBlock(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CompactButton(
+                    TextButton(
                         text = "取消",
                         onClick = { confirmDelete = false },
+                        modifier = Modifier.weight(1f),
                     )
-                    CompactButton(
+                    TextButton(
                         text = "删除",
-                        danger = true,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             // 先关弹窗再执行：删除会触发列表重建，弹窗留在组合里会引用已失效的账号
                             deleting = true

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -35,9 +34,6 @@ import dev.aigw.core.failover.ConcurrencyConfig
 import dev.aigw.core.failover.ModelCooldownConfig
 import dev.aigw.core.failover.RetryConfig
 import org.koin.androidx.compose.koinViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -56,7 +52,6 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.CompactButton
 
 /**
  * 并发与容错：四组参数，分别对应上游异常时的四种处理方式。
@@ -473,8 +468,16 @@ private fun EditDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                CompactButton(text = "取消", onClick = onDismiss)
-                CompactButton(text = "保存", primary = true, onClick = onConfirm)
+                TextButton(
+                    text = "取消",
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = "保存",
+                    onClick = onConfirm,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }

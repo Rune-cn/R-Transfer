@@ -37,8 +37,6 @@ import java.util.Date
 import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -206,7 +204,6 @@ fun MiuixSecurityPage(
                                 jitter = jit.toString()
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColorsPrimary(),
                         )
                     }
                 }
@@ -272,7 +269,6 @@ private fun EvidenceDialog(
                         text = "清空",
                         onClick = onClear,
                         minWidth = 0.dp,
-                        colors = ButtonDefaults.textButtonColors(textColor = MiuixTheme.colorScheme.error),
                     )
                 }
             }
@@ -325,7 +321,6 @@ private fun EvidenceDialog(
                 text = "关闭",
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.textButtonColorsPrimary(),
             )
         }
     }

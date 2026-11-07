@@ -18,22 +18,22 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 设置类页面的排版约定——**与 miuix-example 模板保持一致**。
+ * 设置类页面的排版约定。
  *
- * 模板的卡片节奏是：
+ * **一切以 miuix-example 模板为准**，不要自创样式。模板的规范是：
+ *
  * ```
- * SmallTitle("分组名")
- * Card(modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
- *     BasicComponent(...)   // 自带 16dp 内边距
+ * SmallTitle("分组名")                                  // 分组标题
+ * Card(modifier = Modifier.padding(horizontal = 12.dp)  // 卡片，页级水平边距
+ *                   .padding(bottom = 12.dp)) {
+ *     BasicComponent(title = ..., summary = ...)         // 自带 16dp 内边距
+ *     TextButton(text = ..., onClick = ...)              // 按钮：原生 TextButton
  * }
  * ```
  *
- * 本文件把这个节奏收敛成 [SectionCard] 等几个入口，避免各页面各写一套
- * 导致观感不统一。**新页面请一律走这里，不要直接手写 Card。**
- *
- * 为什么 `Card` 不能直接塞裸 `Text`：miuix 的 `CardDefaults.InsideMargin` 是 0，
- * 它假设子项自带 padding（`BasicComponent` 有 16dp）。裸文本会贴边。
- * [SectionCard] 已为自定义内容补好水平边距。
+ * 本文件只把「卡片」这一层封装好，**按钮一律用原生 `TextButton`**——
+ * 曾试过自定义 `CompactButton` 改 `insideMargin`/`minWidth`，
+ * 结果是按钮高度、圆角、按压反馈都和模板不一致，属于不该做的“优化”。
  */
 
 /** 卡片外水平边距：与模板一致（12dp）。 */
@@ -49,10 +49,8 @@ val CardGap = 12.dp
  * - `BasicComponent`（自带 16dp，无需再补）
  * - 自定义内容（`Text` / `Row` / `TextField` 等，本卡片已补好水平边距）
  *
- * 注意：**水平边距由页面的 `LazyColumn.contentPadding` 提供**（各页已统一 12dp），
- * 这里只负责卡片之间的垂直间距，否则会叠加成 24dp。
- *
- * @param gap 与下方卡片的间距。
+ * 水平边距由页面的 `LazyColumn.contentPadding` 提供（各页统一 12dp），
+ * 这里只负责卡片之间的垂直间距，避免叠加成 24dp。
  */
 @Composable
 fun SectionCard(
@@ -69,17 +67,44 @@ fun SectionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 水平 16dp 对齐 BasicComponent；垂直方向留给各子项自己控制，
-                // 否则「BasicComponent + 自定义内容」混排时会出现双重间距。
+                // 水平 16dp 对齐 BasicComponent；垂直方向交给各子项，避免混排时双重间距
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
             content = content,
         )
     }
 }
 
 /**
- * 卡片内的自定义内容块：负责垂直呼吸，避免与 `BasicComponent` 的行高打架。
+ * 可点击的分组卡片（如「点进去看详情」的列表项）。
+ *
+ * 与 [SectionCard] 的差别只有 `onClick`：miuix 的 `Card` 只有在传入 onClick 时才具备
+ * 按压反馈与水波纹，所以这类卡片必须走 `Card` 的重载，不能包一层 clickable。
+ */
+@Composable
+fun ClickableSectionCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    gap: androidx.compose.ui.unit.Dp = CardGap,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = gap),
+        insideMargin = PaddingValues(0.dp),
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            content = content,
+        )
+    }
+}
+
+/**
+ * 卡片内的自定义内容块：负责垂直呼吸。
  *
  * 用法：`SectionCard { BasicComponent(...); CardBlock { Text(...) } }`
  */
@@ -98,10 +123,16 @@ fun CardBlock(
 }
 
 /**
- * 卡片内的并排按钮行。
+ * 并排按钮行——**与模板一致，直接用原生 `TextButton` + `weight(1f)`**。
  *
- * `TextButton` 自带 16dp 水平内边距 + 58dp 最小宽度，两个各占一半会互相挤压；
- * 这里统一压小内边距并留出间隔。
+ * 模板里 `MiuixDialog` / `MiuixBadge` 的按钮行就是这个写法：
+ * ```
+ * Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+ *     TextButton(text = "取消", onClick = ..., modifier = Modifier.weight(1f))
+ *     TextButton(text = "保存", onClick = ..., modifier = Modifier.weight(1f))
+ * }
+ * ```
+ * 不要改 `insideMargin` / `minWidth`：那会让高度与圆角偏离其余按钮。
  */
 @Composable
 fun ButtonRow(
@@ -109,44 +140,9 @@ fun ButtonRow(
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
-    )
-}
-
-/**
- * 并排用的紧凑按钮：宽度均分、内边距收窄。
- *
- * @param primary 主操作（保存/确认）用强调色底
- * @param danger 破坏性操作（删除）用错误色文字
- */
-@Composable
-fun RowScope.CompactButton(
-    text: String,
-    onClick: () -> Unit,
-    primary: Boolean = false,
-    enabled: Boolean = true,
-    danger: Boolean = false,
-) {
-    TextButton(
-        text = text,
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.weight(1f),
-        minWidth = 0.dp,
-        insideMargin = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
-        colors = when {
-            danger -> top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColors(
-                textColor = MiuixTheme.colorScheme.error,
-            )
-
-            primary -> top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColorsPrimary()
-
-            else -> top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColors()
-        },
     )
 }
 

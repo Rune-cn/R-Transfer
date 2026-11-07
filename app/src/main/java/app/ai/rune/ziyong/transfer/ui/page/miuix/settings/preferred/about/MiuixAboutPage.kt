@@ -6,14 +6,10 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixBlockingLoadingDia
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.preferred.MiuixUpdateSheet
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -25,13 +21,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -52,13 +46,10 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
@@ -66,23 +57,19 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.ai.rune.ziyong.transfer.BuildConfig
 import app.ai.rune.ziyong.transfer.R
 import app.ai.rune.ziyong.transfer.core.device.model.Level
 import app.ai.rune.ziyong.transfer.core.env.AppConfig
 import app.ai.rune.ziyong.transfer.ui.library.blend.ColorBlendToken
 import app.ai.rune.ziyong.transfer.ui.library.effect.BgEffectBackground
 import app.ai.rune.ziyong.transfer.ui.navigation.LocalNavigator
-import app.ai.rune.ziyong.transfer.ui.navigation.Route
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.about.AboutAction
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.about.AboutEvent
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.about.AboutState
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.about.AboutViewModel
-import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.ErrorDisplaySheet
 import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixBackButton
 import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixNavigationItemWidget
 import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixSwitchWidget
@@ -94,19 +81,11 @@ import timber.log.Timber
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.DropdownArrowEndAction
-import top.yukonga.miuix.kmp.basic.DropdownDefaults
-import top.yukonga.miuix.kmp.basic.DropdownImpl
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
-import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
-import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.ScrollBehavior
-import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
-import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.VerticalScrollBar
@@ -119,13 +98,10 @@ import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.interfaces.ExperimentalScrollBarApi
-import top.yukonga.miuix.kmp.theme.LocalDismissState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
 import top.yukonga.miuix.kmp.window.WindowDialog
-import top.yukonga.miuix.kmp.window.WindowListPopup
 
 // Unified entry point
 @Composable

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -33,11 +32,9 @@ import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.ui.theme.getMiuixAppBarColor
 import app.ai.rune.ziyong.transfer.ui.theme.miuixBlurEffect
 import app.ai.rune.ziyong.transfer.ui.theme.rememberMiuixBlurBackdrop
-import dev.aigw.core.gateway.GatewaySettings
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -239,7 +236,6 @@ fun MiuixEndpointsPage(
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColorsPrimary(),
                     )
                 }
             }

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +52,7 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import androidx.compose.ui.state.ToggleableState
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.ClickableSectionCard
 
 /**
  * 模型页：网关对外暴露的模型清单。
@@ -221,14 +221,11 @@ private fun GroupHeader(
     collapsed: Boolean,
     onToggle: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onToggle,
-        insideMargin = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-        cornerRadius = 16.dp,
-    ) {
+    ClickableSectionCard(onClick = onToggle) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -261,13 +258,11 @@ private fun ModelRow(
     exposed: Boolean,
     onToggleExposed: (Boolean) -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        insideMargin = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-        cornerRadius = 14.dp,
-    ) {
+    SectionCard {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {

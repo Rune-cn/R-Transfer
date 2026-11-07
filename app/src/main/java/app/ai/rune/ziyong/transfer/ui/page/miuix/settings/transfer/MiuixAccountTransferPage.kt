@@ -2,7 +2,6 @@
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer
 
 import android.content.ClipData
-import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -46,8 +45,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -402,7 +399,6 @@ fun MiuixAccountTransferPage(
                             },
                             enabled = importSelection.isNotEmpty(),
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColorsPrimary(),
                         )
 
                         AccountTree(

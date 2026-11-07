@@ -42,7 +42,6 @@ import java.text.DateFormat
 import java.util.Date
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -60,6 +59,7 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 import androidx.compose.ui.text.style.TextOverflow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.ClickableSectionCard
 
 /**
  * 额度中心：按供应商查看各账号的额度包明细。
@@ -173,12 +173,11 @@ fun MiuixCreditsPage(
                 item(key = info.id) {
                     val accounts = uiState.accountsOf(info.id)
                     val known = accounts.filter { it.creditsKnown }
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { openProviderId = info.id },
-                    ) {
+                    ClickableSectionCard(onClick = { openProviderId = info.id }) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -368,7 +367,6 @@ private fun MiuixProviderCreditsPage(
                             if (hasLedger) viewModel.loadPointsBills(providerId, account.uid)
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColorsPrimary(),
                     )
                 }
             }
