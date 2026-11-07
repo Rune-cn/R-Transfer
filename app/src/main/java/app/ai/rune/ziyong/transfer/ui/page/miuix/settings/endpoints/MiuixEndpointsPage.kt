@@ -54,6 +54,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /**
  * 接入设置：客户端要用的地址、端口与 API Key。
@@ -125,7 +126,7 @@ fun MiuixEndpointsPage(
         ) {
             item { SmallTitle("客户端填这些") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     val localUrl = uiState.localUrl.ifEmpty { "http://127.0.0.1:${uiState.port}/v1" }
                     BasicComponent(
                         title = "接口地址（本机）",
@@ -159,11 +160,8 @@ fun MiuixEndpointsPage(
 
             item { SmallTitle("端口与网络") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                SectionCard() {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = port,
                             onValueChange = { port = it.filter(Char::isDigit).take(5) },
@@ -193,11 +191,8 @@ fun MiuixEndpointsPage(
 
             item { SmallTitle("鉴权") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                SectionCard() {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = apiKey,
                             onValueChange = { apiKey = it },
@@ -223,7 +218,7 @@ fun MiuixEndpointsPage(
             }
 
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     TextButton(
                         text = "保存",
                         onClick = {
@@ -269,9 +264,7 @@ private fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

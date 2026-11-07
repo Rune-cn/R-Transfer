@@ -56,6 +56,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /**
  * 安全防护：反审核脱敏 + 账号级限速。
@@ -124,7 +125,7 @@ fun MiuixSecurityPage(
         ) {
             item { SmallTitle("反审核脱敏") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -165,18 +166,15 @@ fun MiuixSecurityPage(
 
             item { SmallTitle("账号级限速") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     Text(
                         text = "同一账号连续请求会被串成固定节拍，容易形成可识别特征。" +
                             "加间隔与抖动可打散节奏，代价是首字变慢——不需要规避风控时保持 0。",
                         style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    Column(
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = minInterval,
                             onValueChange = { minInterval = it.filter(Char::isDigit).take(5) },
@@ -285,7 +283,7 @@ private fun EvidenceDialog(
                         "脱敏前后的快照会记录在这里。",
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    modifier = Modifier.padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             } else {
                 LazyColumn(
@@ -296,7 +294,7 @@ private fun EvidenceDialog(
                 ) {
                     items(evidences.size, key = { evidences[it].seq }) { index ->
                         val item = evidences[index]
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        SectionCard() {
                             Text(
                                 text = "${timeFormat.format(Date(item.atMillis))} · ${item.model}",
                                 style = MiuixTheme.textStyles.footnote1,

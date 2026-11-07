@@ -50,6 +50,8 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.basic.Switch
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.CompactButton
 
 /**
  * 自定义供应商的新建 / 编辑。
@@ -126,11 +128,8 @@ fun MiuixCustomProviderPage(
         ) {
             item { SmallTitle("基本信息") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                SectionCard() {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = name,
                             onValueChange = { name = it },
@@ -191,7 +190,7 @@ fun MiuixCustomProviderPage(
 
             item { SmallTitle("怎么填") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     BasicComponent(
                         title = "接口地址",
                         summary = "多数中转站填到 /v1 即可，例如 https://api.example.com/v1；" +
@@ -256,20 +255,18 @@ fun MiuixCustomProviderPage(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
+                    CompactButton(
                         text = "取消",
                         onClick = { confirmDelete = false },
-                        modifier = Modifier.weight(1f),
                     )
-                    TextButton(
+                    CompactButton(
                         text = "删除",
+                        danger = true,
                         onClick = {
                             confirmDelete = false
                             viewModel.removeCustomProvider(existing.key)
                             onBack()
                         },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.textButtonColors(textColor = MiuixTheme.colorScheme.error),
                     )
                 }
             }

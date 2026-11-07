@@ -56,6 +56,9 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.icon.extended.Edit
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.CompactButton
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.ButtonRow
 
 /**
  * 供应商详情：登录入口 + 账号管理。
@@ -137,7 +140,7 @@ fun MiuixProviderDetailPage(
         ) {
             if (provider == null) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "供应商不存在",
                             summary = "可能已被删除，返回上一页刷新后再试。",
@@ -149,7 +152,7 @@ fun MiuixProviderDetailPage(
 
             item { SmallTitle("登录 / 添加账号") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     when (provider.authKind) {
                         AuthKind.NONE -> CustomAccountForm(providerId, viewModel)
                         AuthKind.SMS_CODE -> SmsLoginForm(providerId, viewModel)
@@ -161,7 +164,7 @@ fun MiuixProviderDetailPage(
             item { SmallTitle("账号") }
             if (accounts.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "还没有账号",
                             summary = "先用上方的登录入口添加一个账号。",
@@ -171,7 +174,7 @@ fun MiuixProviderDetailPage(
             } else {
                 items(accounts.size, key = { accounts[it].uid }) { index ->
                     val account = accounts[index]
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         AccountBlock(
                             account = account,
                             provider = provider,
@@ -216,7 +219,7 @@ private fun SmsLoginForm(providerId: String, viewModel: AppViewModel) {
     }
 
     Column(
-        modifier = Modifier.padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -242,9 +245,10 @@ private fun SmsLoginForm(providerId: String, viewModel: AppViewModel) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(
+        ButtonRow {
+            CompactButton(
                 text = if (countdown > 0) "${countdown}s 后重发" else "发送验证码",
+                enabled = phone.isNotBlank() && countdown == 0,
                 onClick = {
                     countdown = 60
                     viewModel.sendSmsCode(providerId, phone.trim(), ccode.trim()) { error ->
@@ -252,16 +256,12 @@ private fun SmsLoginForm(providerId: String, viewModel: AppViewModel) {
                         if (error.isNotEmpty()) countdown = 0
                     }
                 },
-                enabled = phone.isNotBlank() && countdown == 0,
-                modifier = Modifier.weight(1f),
             )
-            TextButton(
+            CompactButton(
                 text = "登录",
-                onClick = {
-                    viewModel.smsLogin(providerId, phone.trim(), code.trim(), ccode.trim()) { }
-                },
+                primary = true,
                 enabled = phone.isNotBlank() && code.isNotBlank(),
-                modifier = Modifier.weight(1f),
+                onClick = { viewModel.smsLogin(providerId, phone.trim(), code.trim(), ccode.trim()) { } },
             )
         }
     }
@@ -275,7 +275,7 @@ private fun CustomAccountForm(providerId: String, viewModel: AppViewModel) {
     var models by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         BasicComponent(
@@ -375,21 +375,15 @@ private fun AccountBlock(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (ProviderCapability.CREDIT_REFRESH in provider.capabilities) {
-                TextButton(
+                CompactButton(
                     text = "刷新额度",
                     onClick = { viewModel.refreshCredits(provider.id, account.uid) },
-                    modifier = Modifier.weight(1f),
-                    minWidth = 0.dp,
                 )
             }
-            TextButton(
+            CompactButton(
                 text = "删除",
                 onClick = { confirmDelete = true },
-                modifier = Modifier.weight(1f),
-                minWidth = 0.dp,
-                colors = ButtonDefaults.textButtonColors(
-                    textColor = MiuixTheme.colorScheme.error,
-                ),
+                danger = true,
             )
         }
     }
@@ -407,23 +401,19 @@ private fun AccountBlock(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
+                    CompactButton(
                         text = "取消",
                         onClick = { confirmDelete = false },
-                        modifier = Modifier.weight(1f),
                     )
-                    TextButton(
+                    CompactButton(
                         text = "删除",
+                        danger = true,
                         onClick = {
                             // 先关弹窗再执行：删除会触发列表重建，弹窗留在组合里会引用已失效的账号
                             deleting = true
                             confirmDelete = false
                             viewModel.removeAccount(provider.id, account.uid)
                         },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.textButtonColors(
-                            textColor = MiuixTheme.colorScheme.error,
-                        ),
                     )
                 }
             }

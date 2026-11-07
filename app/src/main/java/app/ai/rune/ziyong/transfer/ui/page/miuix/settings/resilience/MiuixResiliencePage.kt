@@ -55,6 +55,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.CompactButton
 
 /**
  * 并发与容错：四组参数，分别对应上游异常时的四种处理方式。
@@ -120,7 +122,7 @@ fun MiuixResiliencePage(
         ) {
             item { SmallTitle("并发闸门") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     ParamRow(
                         "单账号在途上限",
                         if (failover.concurrency.maxPerAccount == 0) {
@@ -138,7 +140,7 @@ fun MiuixResiliencePage(
                         text = "单账号默认 1：上游按账号限流并发流，同时打多条会除首条外被挂住，客户端超时。",
                         style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     TextButton(
                         text = "修改并发参数",
@@ -150,7 +152,7 @@ fun MiuixResiliencePage(
 
             item { SmallTitle("失败转移") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -190,7 +192,7 @@ fun MiuixResiliencePage(
 
             item { SmallTitle("熔断器（按供应商）") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     ParamRow("连续失败阈值", "${failover.circuitBreaker.failureThreshold} 次")
                     ParamRow("熔断静默时长", "${failover.circuitBreaker.openDurationMs / 1000} 秒")
                     ParamRow("半开恢复成功数", "${failover.circuitBreaker.halfOpenSuccessCount} 次")
@@ -204,14 +206,14 @@ fun MiuixResiliencePage(
 
             item { SmallTitle("模型级冷却") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     ParamRow("冷却时长", "${failover.modelCooldown.cooldownMs / 1000} 秒")
                     ParamRow("冷却上限", "${failover.modelCooldown.maxCooldownMs / 1000} 秒")
                     Text(
                         text = "上游报「该模型已超限」时只冷却该模型：不换账号、不计熔断，冷却期内直接跳过。",
                         style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     TextButton(
                         text = "修改模型级冷却",
@@ -281,9 +283,7 @@ private enum class EditTarget { Concurrency, Retry, CircuitBreaker, ModelCooldow
 @Composable
 private fun ParamRow(title: String, value: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -473,17 +473,8 @@ private fun EditDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                TextButton(
-                    text = "取消",
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(
-                    text = "保存",
-                    onClick = onConfirm,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.textButtonColorsPrimary(),
-                )
+                CompactButton(text = "取消", onClick = onDismiss)
+                CompactButton(text = "保存", primary = true, onClick = onConfirm)
             }
         }
     }

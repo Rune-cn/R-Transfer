@@ -52,6 +52,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /**
  * 调用记录页：网关处理过的每一次请求。
@@ -114,7 +115,7 @@ fun MiuixCallLogPage(
         ) {
             item { SmallTitle("今日") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     StatusRow(uiState.today.requests, uiState.today.success, uiState.today.failed, uiState.today.aborted)
                     BasicComponent(
                         title = "Tokens",
@@ -129,7 +130,7 @@ fun MiuixCallLogPage(
 
             if (uiState.calls.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "暂无调用记录",
                             summary = "用任一 API Key 调用本地网关后，记录会出现在这里。",
@@ -139,7 +140,7 @@ fun MiuixCallLogPage(
             } else {
                 items(uiState.calls.size, key = { uiState.calls[it].id }) { index ->
                     val record = uiState.calls[index]
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         CallRow(record, onClick = { detail = record })
                     }
                 }

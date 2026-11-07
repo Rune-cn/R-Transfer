@@ -65,6 +65,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /** 勾选树里的账号：导出（AccountStatus）与导入（ProviderAccount）共用。 */
 private data class SelectableAccount(val providerId: String, val uid: String, val nickname: String) {
@@ -220,12 +221,12 @@ fun MiuixAccountTransferPage(
         ) {
             item { SmallTitle("导出") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     Text(
                         text = "导出内容含各账号的登录凭证（token），请勿外传。全程只经剪贴板或你选定的文件，不联网。",
                         style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.error,
-                        modifier = Modifier.padding(vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -294,7 +295,7 @@ fun MiuixAccountTransferPage(
                             text = "最近一次导出：$exportedChars 字符",
                             style = MiuixTheme.textStyles.footnote2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.padding(bottom = 6.dp),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
@@ -302,12 +303,12 @@ fun MiuixAccountTransferPage(
 
             item { SmallTitle("导入") }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     Text(
                         text = "粘贴导出内容，或选择一个 .json 文件。内容贴进来会自动识别，列出账号后可勾选要导入哪些。",
                         style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     TextField(
                         value = importText,
@@ -333,14 +334,14 @@ fun MiuixAccountTransferPage(
                             text = importError,
                             style = MiuixTheme.textStyles.footnote2,
                             color = MiuixTheme.colorScheme.error,
-                            modifier = Modifier.padding(bottom = 6.dp),
+                            modifier = Modifier.fillMaxWidth(),
                         )
 
                         importText.isNotBlank() && parsed == null -> Text(
                             text = "正在识别…",
                             style = MiuixTheme.textStyles.footnote2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.padding(bottom = 6.dp),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
@@ -348,7 +349,7 @@ fun MiuixAccountTransferPage(
 
             parsed?.let { accounts ->
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         val grouped = uiState.providers
                             .map { info -> info.id to accounts.filter { it.providerId == info.id } }
                             .filter { it.second.isNotEmpty() }
@@ -364,7 +365,7 @@ fun MiuixAccountTransferPage(
                                     unknown.map { it.providerId }.distinct().joinToString("、"),
                                 style = MiuixTheme.textStyles.footnote2,
                                 color = MiuixTheme.colorScheme.error,
-                                modifier = Modifier.padding(vertical = 4.dp),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                         Row(
@@ -416,7 +417,7 @@ fun MiuixAccountTransferPage(
 
             result?.let { outcome ->
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "导入完成",
                             summary = "新增 ${outcome.added.size} · 覆盖 ${outcome.updated.size} · " +
@@ -428,7 +429,7 @@ fun MiuixAccountTransferPage(
                                     if (outcome.skipped.size > 8) " 等 ${outcome.skipped.size} 个" else "",
                                 style = MiuixTheme.textStyles.footnote2,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                modifier = Modifier.padding(vertical = 4.dp),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                         if (outcome.unknownProviders.isNotEmpty()) {
@@ -436,7 +437,7 @@ fun MiuixAccountTransferPage(
                                 text = "未知供应商：" + outcome.unknownProviders.distinct().joinToString("、"),
                                 style = MiuixTheme.textStyles.footnote2,
                                 color = MiuixTheme.colorScheme.error,
-                                modifier = Modifier.padding(bottom = 6.dp),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                     }
@@ -465,7 +466,7 @@ private fun AccountTree(
             text = "没有可选的账号",
             style = MiuixTheme.textStyles.footnote2,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            modifier = Modifier.padding(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth(),
         )
         return
     }

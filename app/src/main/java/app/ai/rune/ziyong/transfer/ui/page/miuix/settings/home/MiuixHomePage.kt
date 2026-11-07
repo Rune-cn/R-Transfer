@@ -70,6 +70,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import top.yukonga.miuix.kmp.basic.Switch
 
 /**
  * 首页：网关控制台。
@@ -158,23 +159,58 @@ fun MiuixHomePage(
                 )
             }
 
+            // 总开关：放在状态卡片正下方，是进入本应用后第一个能操作的东西。
+            // 用整行大开关而不是按钮，是为了让「开/关」的状态和动作合成一个控件——
+            // 按钮只能表达动作，用户还得回头看卡片才知道当前是否运行。
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp),
                 ) {
-                    BasicComponent(
-                        title = if (uiState.running) "停止网关" else "启动网关",
-                        summary = if (uiState.running) {
-                            "关闭本地端口，客户端将无法连接"
-                        } else {
-                            "开始监听端口，供客户端以 OpenAI 兼容接口调用"
-                        },
-                        onClick = {
-                            if (uiState.running) viewModel.stopGateway() else startWithPermission()
-                        },
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = "网关总开关",
+                                style = MiuixTheme.textStyles.title4,
+                                color = MiuixTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = if (uiState.running) {
+                                    "已开启 · 正在监听 :${uiState.port}"
+                                } else {
+                                    "已关闭 · 客户端无法连接"
+                                },
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = if (uiState.running) {
+                                    MiuixTheme.colorScheme.primary
+                                } else {
+                                    MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                },
+                            )
+                        }
+                        Switch(
+                            checked = uiState.running,
+                            onCheckedChange = { on ->
+                                if (on) startWithPermission() else viewModel.stopGateway()
+                            },
+                        )
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                ) {
                     BasicComponent(
                         title = "刷新全部额度",
                         summary = "向各上游重新拉取账号额度",

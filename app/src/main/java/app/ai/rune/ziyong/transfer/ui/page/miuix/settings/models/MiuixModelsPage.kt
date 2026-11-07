@@ -52,6 +52,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import androidx.compose.ui.state.ToggleableState
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /**
  * 模型页：网关对外暴露的模型清单。
@@ -122,7 +123,7 @@ fun MiuixModelsPage(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     BasicComponent(
                         title = "模型名怎么填",
                         summary = "客户端里填「供应商前缀/模型 id」，例如 trae/solo-1.0；下方每条都给出了完整写法",
@@ -142,7 +143,7 @@ fun MiuixModelsPage(
 
             if (uiState.modelsError.isNotEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "拉取失败",
                             summary = uiState.modelsError,
@@ -154,7 +155,7 @@ fun MiuixModelsPage(
             if (uiState.models.isEmpty()) {
                 item { SmallTitle("模型") }
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = if (uiState.modelsLoading) "正在拉取模型目录…" else "还没有模型",
                             summary = if (uiState.modelsLoading) {
@@ -340,9 +341,7 @@ private fun SwitchRowInline(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

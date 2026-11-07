@@ -58,6 +58,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /**
  * 额度中心：按供应商查看各账号的额度包明细。
@@ -135,7 +136,7 @@ fun MiuixCreditsPage(
         ) {
             if (providersWithAccounts.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "还没有账号",
                             summary = "先去「供应商」页添加账号，额度会显示在这里。",
@@ -147,7 +148,7 @@ fun MiuixCreditsPage(
             }
 
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     val known = uiState.accounts.filter { it.creditsKnown }
                     BasicComponent(
                         title = "额度合计",
@@ -295,7 +296,7 @@ private fun MiuixProviderCreditsPage(
         ) {
             if (accounts.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "还没有账号",
                             summary = "先去该供应商页添加账号。",
@@ -311,7 +312,7 @@ private fun MiuixProviderCreditsPage(
                 val packs = state.creditPacks["$providerId/${account.uid}"].orEmpty()
                 val bills = state.pointsBills["$providerId/${account.uid}"]
 
-                Card(modifier = Modifier.fillMaxWidth()) {
+                SectionCard() {
                     BasicComponent(
                         title = account.nickname.ifEmpty { account.uid },
                         summary = buildString {
@@ -332,7 +333,7 @@ private fun MiuixProviderCreditsPage(
                             },
                             style = MiuixTheme.textStyles.footnote2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.padding(vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
                         for (pack in packs) {
@@ -398,9 +399,7 @@ private fun QuotaPackRow(pack: QuotaPack) {
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -474,9 +473,7 @@ private fun PointsBillRow(bill: PointsBill) {
         }
     }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -512,6 +509,6 @@ private fun Hint(text: String, error: Boolean = false) {
         text = text,
         style = MiuixTheme.textStyles.footnote2,
         color = if (error) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        modifier = Modifier.padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
     )
 }

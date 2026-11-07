@@ -49,6 +49,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /**
  * 供应商页：按供应商分组列出账号与可用状态。
@@ -161,7 +162,7 @@ fun MiuixProvidersPage(
         ) {
             if (uiState.providers.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "还没有供应商",
                             summary = "内置供应商会在引擎启动时自动登记，稍等片刻或重启应用。",
@@ -176,7 +177,7 @@ fun MiuixProvidersPage(
                     SmallTitle(provider.displayName)
                 }
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    SectionCard() {
                         BasicComponent(
                             title = "账号",
                             summary = "${provider.accountCount} 个 · 可用 ${provider.usableCount} 个 · 点此管理",
