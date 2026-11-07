@@ -68,6 +68,7 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.keepalive.MiuixKeepAli
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer.MiuixAccountTransferPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits.MiuixCreditsPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.security.MiuixSecurityPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.resilience.MiuixResiliencePage
 
 @Composable
 fun MiuixPreferredPage(
@@ -91,8 +92,13 @@ fun MiuixPreferredPage(
     var openTransfer by remember { mutableStateOf(false) }
     var openCredits by remember { mutableStateOf(false) }
     var openSecurity by remember { mutableStateOf(false) }
-    BackHandler(enabled = openEndpoints || openKeepAlive || openTransfer || openCredits || openSecurity) {
+    var openResilience by remember { mutableStateOf(false) }
+    BackHandler(
+        enabled = openEndpoints || openKeepAlive || openTransfer || openCredits ||
+            openSecurity || openResilience,
+    ) {
         when {
+            openResilience -> openResilience = false
             openSecurity -> openSecurity = false
             openCredits -> openCredits = false
             openTransfer -> openTransfer = false
@@ -136,6 +142,14 @@ fun MiuixPreferredPage(
         MiuixSecurityPage(
             viewModel = gatewayViewModel,
             onBack = { openSecurity = false },
+            outerPadding = outerPadding,
+        )
+        return
+    }
+    if (openResilience) {
+        MiuixResiliencePage(
+            viewModel = gatewayViewModel,
+            onBack = { openResilience = false },
             outerPadding = outerPadding,
         )
         return
@@ -252,6 +266,21 @@ fun MiuixPreferredPage(
                             "有待处理项：锁屏后可能连不上"
                         },
                         onClick = { openKeepAlive = true },
+                    )
+                    BasicComponent(
+                        title = "并发与容错",
+                        summary = buildString {
+                            append(
+                                if (gateway.failover.concurrency.maxPerAccount == 0) {
+                                    "并发不限"
+                                } else {
+                                    "单账号${gateway.failover.concurrency.maxPerAccount}"
+                                },
+                            )
+                            append(" · ")
+                            append(if (gateway.failover.enabled) "失败转移开" else "失败转移关")
+                        },
+                        onClick = { openResilience = true },
                     )
                     BasicComponent(
                         title = "安全防护",
