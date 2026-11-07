@@ -76,6 +76,10 @@ fun MiuixModelsPage(
     val backdrop = rememberMiuixBlurBackdrop(enableBlur)
     var collapsed by remember { mutableStateOf(emptySet<String>()) }
 
+    // 分组必须在 Composable 作用域里算好再交给 LazyListScope：
+    // LazyListScope 的 lambda 不是 @Composable 上下文，不能在里面调用 remember。
+    val grouped = remember(uiState.models) { uiState.models.groupBy { it.routePrefix } }
+
     // 首次进入拉一次目录：供应商多时拉取耗时明显，不该让冷启动付这笔开销
     LaunchedEffect(Unit) { viewModel.ensureModelsLoaded() }
 
@@ -162,7 +166,6 @@ fun MiuixModelsPage(
                     }
                 }
             } else {
-                val grouped = remember(uiState.models) { uiState.models.groupBy { it.routePrefix } }
                 for ((routePrefix, models) in grouped) {
                     val isCollapsed = routePrefix in collapsed
                     item(key = "header-$routePrefix") {
