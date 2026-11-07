@@ -18,6 +18,15 @@ enum class AuthKind {
 
     /** 无需登录，凭证即 API Key（自定义供应商）。 */
     NONE,
+
+    /**
+     * 粘贴会话 Cookie 登录（腾讯元宝）。
+     *
+     * 元宝的登录态是 Cookie 会话（`hy_token` + `hy_user`），没有 OAuth code 回调；
+     * 用户在浏览器登录后复制 Cookie，粘贴进 App 完成导入。
+     * 导入后查询类接口（用户/模型/额度）可直接用，对话还需 qimei USKey 签名。
+     */
+    COOKIE_PASTE,
 }
 
 /** provider 支持的额外动作，UI 据此决定展示哪些按钮。 */

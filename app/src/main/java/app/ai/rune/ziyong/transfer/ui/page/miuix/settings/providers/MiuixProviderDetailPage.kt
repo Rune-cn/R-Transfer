@@ -145,6 +145,7 @@ fun MiuixProviderDetailPage(
                     when (provider.authKind) {
                         AuthKind.NONE -> CustomAccountForm(providerId, viewModel)
                         AuthKind.SMS_CODE -> SmsLoginForm(providerId, viewModel)
+                        AuthKind.COOKIE_PASTE -> CookiePasteForm(providerId, viewModel)
                         else -> NavigationRow(
                             title = if (provider.authKind == AuthKind.DEVICE_CODE) {
                                 "在浏览器中完成设备授权"
@@ -182,6 +183,40 @@ fun MiuixProviderDetailPage(
             item { Spacer(modifier = Modifier.navigationBarsPadding()) }
         }
     }
+}
+
+/**
+ * 粘贴 Cookie 登录（腾讯元宝等 Cookie 会话类供应商）。
+ *
+ * 元宝没有 OAuth 回调：用户在浏览器（电脑/手机均可）登录后，
+ * 从开发者工具复制请求里的 Cookie 串，粘贴到这里完成导入。
+ * 导入成功会立即出现在下方账号列表。
+ */
+@Composable
+private fun CookiePasteForm(providerId: String, viewModel: AppViewModel) {
+    var cookie by remember { mutableStateOf("") }
+
+    PreferenceBlock {
+        PreferenceHint(
+            "在浏览器打开 yuanbao.tencent.com 并登录，然后 F12 → Network → 刷新一次页面，" +
+                "复制任意请求的 Cookie 请求头粘贴到这里。",
+        )
+        TextField(
+            value = cookie,
+            onValueChange = { cookie = it },
+            label = "完整 Cookie 串（含 hy_token / hy_user）",
+            minLines = 3,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    PreferenceActionRow(
+        text = "导入账号",
+        enabled = cookie.isNotBlank(),
+        onClick = {
+            viewModel.importCredentials(providerId, cookie.trim())
+            cookie = ""
+        },
+    )
 }
 
 /** 短信验证码登录。 */

@@ -2,6 +2,15 @@
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.preferred
 
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -28,13 +37,24 @@ import app.ai.rune.ziyong.transfer.R
 import app.ai.rune.ziyong.transfer.core.device.model.Level
 import app.ai.rune.ziyong.transfer.core.env.AppConfig
 import app.ai.rune.ziyong.transfer.core.i18n.LocaleManager
+import app.ai.rune.ziyong.transfer.gateway.AppUiState
+import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.ui.icons.AppIcons
 import app.ai.rune.ziyong.transfer.ui.navigation.LocalNavigator
 import app.ai.rune.ziyong.transfer.ui.navigation.Route
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.PreferredViewEvent
+import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.PreferredViewState
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.PreferredViewModel
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.findActivity
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits.MiuixCreditsPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.endpoints.MiuixEndpointsPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.keepalive.MiuixKeepAlivePage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.resilience.MiuixResiliencePage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.security.MiuixSecurityPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer.MiuixAccountTransferPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixBlockingLoadingDialog
-import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixNavigationItemWidget
 import app.ai.rune.ziyong.transfer.ui.theme.SystemBarAppearance
 import app.ai.rune.ziyong.transfer.ui.theme.applyWindowAppearance
@@ -58,16 +78,27 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.endpoints.MiuixEndpointsPage
-import androidx.activity.compose.BackHandler
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.keepalive.MiuixKeepAlivePage
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer.MiuixAccountTransferPage
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits.MiuixCreditsPage
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.security.MiuixSecurityPage
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.resilience.MiuixResiliencePage
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.findActivity
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+
+/**
+ * 设置页内部要打开的二级页目标。
+ *
+ * 用 sealed 目标 + [AnimatedContent] 代替「6 个 boolean + return」：
+ * 二级页的推入/返回统一走页面过渡动画（push 从右滑入、pop 向右滑出），
+ * 返回时仍停在本 Tab（目标回到 null）。
+ */
+private sealed interface GatewaySubPage {
+    data object Endpoints : GatewaySubPage
+
+    data object KeepAlive : GatewaySubPage
+
+    data object Transfer : GatewaySubPage
+
+    data object Credits : GatewaySubPage
+
+    data object Security : GatewaySubPage
+
+    data object Resilience : GatewaySubPage
+}
 
 @Composable
 fun MiuixPreferredPage(
@@ -85,81 +116,9 @@ fun MiuixPreferredPage(
     val uiState by viewModel.state.collectAsStateWithLifecycle()
     val gateway by gatewayViewModel.state.collectAsStateWithLifecycle()
 
-    // 设置页内部的二级页：进入后返回仍停在本 Tab
-    var openEndpoints by remember { mutableStateOf(false) }
-    var openKeepAlive by remember { mutableStateOf(false) }
-    var openTransfer by remember { mutableStateOf(false) }
-    var openCredits by remember { mutableStateOf(false) }
-    var openSecurity by remember { mutableStateOf(false) }
-    var openResilience by remember { mutableStateOf(false) }
-    BackHandler(
-        enabled = openEndpoints || openKeepAlive || openTransfer || openCredits ||
-            openSecurity || openResilience,
-    ) {
-        when {
-            openResilience -> openResilience = false
-            openSecurity -> openSecurity = false
-            openCredits -> openCredits = false
-            openTransfer -> openTransfer = false
-            openKeepAlive -> openKeepAlive = false
-            else -> openEndpoints = false
-        }
-    }
-    if (openEndpoints) {
-        MiuixEndpointsPage(
-            viewModel = gatewayViewModel,
-            onBack = { openEndpoints = false },
-            outerPadding = outerPadding,
-        )
-        return
-    }
-    if (openKeepAlive) {
-        MiuixKeepAlivePage(
-            viewModel = gatewayViewModel,
-            onBack = { openKeepAlive = false },
-            outerPadding = outerPadding,
-        )
-        return
-    }
-    if (openTransfer) {
-        MiuixAccountTransferPage(
-            viewModel = gatewayViewModel,
-            onBack = { openTransfer = false },
-            outerPadding = outerPadding,
-        )
-        return
-    }
-    if (openCredits) {
-        MiuixCreditsPage(
-            viewModel = gatewayViewModel,
-            onBack = { openCredits = false },
-            outerPadding = outerPadding,
-        )
-        return
-    }
-    if (openSecurity) {
-        MiuixSecurityPage(
-            viewModel = gatewayViewModel,
-            onBack = { openSecurity = false },
-            outerPadding = outerPadding,
-        )
-        return
-    }
-    if (openResilience) {
-        MiuixResiliencePage(
-            viewModel = gatewayViewModel,
-            onBack = { openResilience = false },
-            outerPadding = outerPadding,
-        )
-        return
-    }
-
-    val revLevel = when (AppConfig.LEVEL) {
-        Level.STABLE -> stringResource(id = R.string.stable)
-        Level.PREVIEW -> stringResource(id = R.string.preview)
-        Level.UNSTABLE -> stringResource(id = R.string.unstable)
-    }
-    val scrollBehavior = MiuixScrollBehavior()
+    // 当前打开的二级页（null = 主列表）。进入后返回仍停在本 Tab。
+    var subPage by remember { mutableStateOf<GatewaySubPage?>(null) }
+    BackHandler(enabled = subPage != null) { subPage = null }
 
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var showUpdateLoading by remember { mutableStateOf(false) }
@@ -188,9 +147,147 @@ fun MiuixPreferredPage(
         }
     }
 
-    // Capture layout direction and horizontal safe insets for display cutouts in landscape
-    val layoutDirection = LocalLayoutDirection.current
+    // 二级页过渡：进入（null → 子页）向右推入，返回（子页 → null）向右滑出，
+    // 与系统级页面导航的 push/pop 方向一致。时长/缓动对齐模板「个性化」页的 300~400ms。
+    AnimatedContent(
+        targetState = subPage,
+        transitionSpec = {
+            if (targetState == null) {
+                (slideInHorizontally(
+                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                    initialOffsetX = { -it / 4 },
+                ) + fadeIn(animationSpec = tween(320))) togetherWith
+                    (slideOutHorizontally(
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        targetOffsetX = { it },
+                    ) + fadeOut(animationSpec = tween(240)))
+            } else {
+                (slideInHorizontally(
+                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                    initialOffsetX = { it },
+                ) + fadeIn(animationSpec = tween(320))) togetherWith
+                    (slideOutHorizontally(
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        targetOffsetX = { -it / 4 },
+                    ) + fadeOut(animationSpec = tween(240)))
+            }
+        },
+        label = "gatewaySubPage",
+    ) { target ->
+        when (target) {
+            GatewaySubPage.Endpoints -> MiuixEndpointsPage(
+                viewModel = gatewayViewModel,
+                onBack = { subPage = null },
+                outerPadding = outerPadding,
+            )
 
+            GatewaySubPage.KeepAlive -> MiuixKeepAlivePage(
+                viewModel = gatewayViewModel,
+                onBack = { subPage = null },
+                outerPadding = outerPadding,
+            )
+
+            GatewaySubPage.Transfer -> MiuixAccountTransferPage(
+                viewModel = gatewayViewModel,
+                onBack = { subPage = null },
+                outerPadding = outerPadding,
+            )
+
+            GatewaySubPage.Credits -> MiuixCreditsPage(
+                viewModel = gatewayViewModel,
+                onBack = { subPage = null },
+                outerPadding = outerPadding,
+            )
+
+            GatewaySubPage.Security -> MiuixSecurityPage(
+                viewModel = gatewayViewModel,
+                onBack = { subPage = null },
+                outerPadding = outerPadding,
+            )
+
+            GatewaySubPage.Resilience -> MiuixResiliencePage(
+                viewModel = gatewayViewModel,
+                onBack = { subPage = null },
+                outerPadding = outerPadding,
+            )
+
+            null -> PreferredMainContent(
+                enableBlur = enableBlur,
+                title = title,
+                outerPadding = outerPadding,
+                snackbarHostState = snackbarHostState,
+                uiState = uiState,
+                gateway = gateway,
+                onOpenSubPage = { subPage = it },
+                onOpenAbout = { navigator.push(Route.About) },
+                onOpenTheme = { navigator.push(Route.Theme) },
+            )
+        }
+    }
+
+    // Update check result shown with miuix WindowDialog.
+    WindowDialog(
+        show = updateMessage != null,
+        title = stringResource(R.string.get_update),
+        summary = updateMessage.orEmpty(),
+        onDismissRequest = { updateMessage = null },
+    ) {
+        TextButton(
+            text = stringResource(R.string.cancel),
+            onClick = { updateMessage = null },
+        )
+    }
+
+    // Update result sheet: notes rendered with MiuixMarkdownText; download/open
+    // actions land on the remote URL in the system browser.
+    MiuixUpdateSheet(
+        show = showUpdateSheet,
+        updateInfo = uiState.updateInfo,
+        channelLabel = when (AppConfig.LEVEL) {
+            Level.STABLE -> stringResource(id = R.string.stable)
+            Level.PREVIEW -> stringResource(id = R.string.preview)
+            Level.UNSTABLE -> stringResource(id = R.string.unstable)
+        },
+        releaseNotes = uiState.updateInfo?.updateLog,
+        onDismissRequest = { showUpdateSheet = false },
+        onOpenReleasePage = { uriHandler.openUri(it) },
+        onDownload = { info ->
+            val url = info.downloadUrl.ifBlank { info.releaseUrl }
+            if (url.isNotBlank()) uriHandler.openUri(url)
+        },
+    )
+
+    MiuixBlockingLoadingDialog(
+        visible = showUpdateLoading,
+        text = stringResource(R.string.checking_update),
+    )
+}
+
+/**
+ * 设置页主列表（subPage == null 时的内容）。
+ *
+ * 与模板「个性化」页一致：TopAppBar + LazyColumn（SmallTitle 分组 + PreferenceCard）。
+ */
+@Composable
+private fun PreferredMainContent(
+    enableBlur: Boolean,
+    title: String,
+    outerPadding: PaddingValues,
+    snackbarHostState: SnackbarHostState,
+    uiState: PreferredViewState,
+    gateway: AppUiState,
+    onOpenSubPage: (GatewaySubPage) -> Unit,
+    onOpenAbout: () -> Unit,
+    onOpenTheme: () -> Unit,
+) {
+    val context = LocalContext.current
+    val revLevel = when (AppConfig.LEVEL) {
+        Level.STABLE -> stringResource(id = R.string.stable)
+        Level.PREVIEW -> stringResource(id = R.string.preview)
+        Level.UNSTABLE -> stringResource(id = R.string.unstable)
+    }
+    val scrollBehavior = MiuixScrollBehavior()
+    val layoutDirection = LocalLayoutDirection.current
     val topBarBackdrop = rememberMiuixBlurBackdrop(enableBlur)
 
     Scaffold(
@@ -262,7 +359,7 @@ fun MiuixPreferredPage(
                     NavigationRow(
                         title = "接入设置",
                         summary = "端口、API Key 与客户端要填的地址",
-                        onClick = { openEndpoints = true },
+                        onClick = { onOpenSubPage(GatewaySubPage.Endpoints) },
                     )
                     NavigationRow(
                         title = "保活与权限",
@@ -271,7 +368,7 @@ fun MiuixPreferredPage(
                         } else {
                             "有待处理项：锁屏后可能连不上"
                         },
-                        onClick = { openKeepAlive = true },
+                        onClick = { onOpenSubPage(GatewaySubPage.KeepAlive) },
                     )
                     NavigationRow(
                         title = "并发与容错",
@@ -286,7 +383,7 @@ fun MiuixPreferredPage(
                             append(" · ")
                             append(if (gateway.failover.enabled) "失败转移开" else "失败转移关")
                         },
-                        onClick = { openResilience = true },
+                        onClick = { onOpenSubPage(GatewaySubPage.Resilience) },
                     )
                     NavigationRow(
                         title = "安全防护",
@@ -301,7 +398,7 @@ fun MiuixPreferredPage(
                                 },
                             )
                         },
-                        onClick = { openSecurity = true },
+                        onClick = { onOpenSubPage(GatewaySubPage.Security) },
                     )
                     NavigationRow(
                         title = "额度中心",
@@ -310,12 +407,12 @@ fun MiuixPreferredPage(
                         } else {
                             "按供应商查看额度包明细"
                         },
-                        onClick = { openCredits = true },
+                        onClick = { onOpenSubPage(GatewaySubPage.Credits) },
                     )
                     NavigationRow(
                         title = "账号导入导出",
                         summary = "换机与备份：共 ${gateway.pool.total} 个账号（含凭证，请勿外传）",
-                        onClick = { openTransfer = true },
+                        onClick = { onOpenSubPage(GatewaySubPage.Transfer) },
                     )
                 }
             }
@@ -357,9 +454,7 @@ fun MiuixPreferredPage(
                         icon = AppIcons.Theme,
                         title = stringResource(R.string.theme_settings),
                         description = stringResource(R.string.theme_settings_desc),
-                        onClick = {
-                            navigator.push(Route.Theme)
-                        },
+                        onClick = onOpenTheme,
                     )
                 }
             }
@@ -384,43 +479,10 @@ fun MiuixPreferredPage(
                             color = if (uiState.hasUpdate) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             disabledColor = MiuixTheme.colorScheme.disabledOnSecondaryVariant,
                         ),
-                        onClick = { navigator.push(Route.About) },
+                        onClick = onOpenAbout,
                     )
                 }
             }
         }
     }
-
-    // Update check result shown with miuix WindowDialog.
-    WindowDialog(
-        show = updateMessage != null,
-        title = stringResource(R.string.get_update),
-        summary = updateMessage.orEmpty(),
-        onDismissRequest = { updateMessage = null },
-    ) {
-        TextButton(
-            text = stringResource(R.string.cancel),
-            onClick = { updateMessage = null },
-        )
-    }
-
-    // Update result sheet: notes rendered with MiuixMarkdownText; download/open
-    // actions land on the remote URL in the system browser.
-    MiuixUpdateSheet(
-        show = showUpdateSheet,
-        updateInfo = uiState.updateInfo,
-        channelLabel = revLevel,
-        releaseNotes = uiState.updateInfo?.updateLog,
-        onDismissRequest = { showUpdateSheet = false },
-        onOpenReleasePage = { uriHandler.openUri(it) },
-        onDownload = { info ->
-            val url = info.downloadUrl.ifBlank { info.releaseUrl }
-            if (url.isNotBlank()) uriHandler.openUri(url)
-        },
-    )
-
-    MiuixBlockingLoadingDialog(
-        visible = showUpdateLoading,
-        text = stringResource(R.string.checking_update),
-    )
 }

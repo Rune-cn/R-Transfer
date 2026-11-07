@@ -270,6 +270,7 @@ AnimatedVisibility(
 | 首页（状态卡 / 总开关 / 地址 / 今日遥测） | ✅ |
 | 供应商列表 → 详情（登录 + 账号管理） | ✅ |
 | 自定义供应商 新建 / 编辑 / 删除 | ✅ |
+| **腾讯元宝（yuanbao）**：粘贴 Cookie 登录、模型、额度；对话需 qimei USKey | ✅（USKey 见下） |
 | 模型清单（含前缀说明 / 开放名单） | ✅ |
 | 调用记录（今日统计 / 列表 / 详情） | ✅ |
 | 设置：接入设置 | ✅ |
@@ -288,6 +289,19 @@ AnimatedVisibility(
 - **签到 / 批量任务**：`checkinAll()` / `runAllTasks()` 在 ViewModel 里可用，但首页没有入口
   （上游有「任务中心」页）。
 - **模型测速**：`testModel()` 可用，模型页未接按钮。
+
+### 腾讯元宝（yuanbao）的 USKey 说明
+
+元宝的**查询类接口**（用户信息 / 模型列表 / 额度）只需 Cookie；**对话**（`POST /api/chat/{cid}`）
+需要 qimei USKey 签名三件套（`X-Timestamp` / `X-Bus-Params-Md5` / `X-Uskey`），
+USKey 只能由浏览器环境铸造、且短暂有效。当前支持两种配置方式：
+
+1. **本地 USKey 铸造服务**：`uskey_browser.py --serve <port>`（Python，来自元宝逆向包），
+   地址填到供应商设置 `uskeyServiceUrl`，provider 每次对话前自动调用取新鲜签名；
+2. **静态签名**：浏览器抓包一次 `/api/chat` 请求，把 `X-Uskey` / `h38` 等填入账号凭证（短暂有效）。
+
+两者都没配时，provider **不发起对话请求**（上游被拒时照样扣配额），返回带指引的错误。
+首次接入建议先跑通查询类接口，再按 §8 路线补 USKey。
 
 ---
 

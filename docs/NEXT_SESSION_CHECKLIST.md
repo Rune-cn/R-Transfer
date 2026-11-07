@@ -33,10 +33,12 @@ miuix UI 底部 5 Tab（首页 / 供应商 / 模型 / 调用记录 / 设置）�
 1. **模型测速**：`testModel()` 已在 `AppViewModel`，给模型页接「测速」按钮（最轻量、收益直接）
 2. **签到 / 任务中心**：`checkinAll()` / `runAllTasks()` 可用，首页加入口页
 3. **供应商专属设置**：移植上游 `ProviderUi` 实现（Trae 设备指纹 / WorkBuddy 成长中心 / Loomy 新手任务 / 小浣熊积分兑换），账号管理页按供应商类型走专属路径
-4. **更新检查三态**：区分「有更新 / 无更新 / 检查失败」；debug 构建放开或明确告知
-5. **Release 固定下载**：创建 GitHub Release 传 APK，解决 artifact 过期问题
-6. **更新下载应用内化**（可选）：应用内下载 + 进度 + 安装（`ApkInstaller` 已有，缺 UI 进度）
-7. **日志持久化**（可选）：`cacheDir` 会被系统清缓存 → 评估迁 `filesDir`（`util/timber/FileLoggingTree.kt`、`LogViewModel.kt`、`core/crash/CrashHandler.kt`）
+4. **元宝 USKey 接入工具**：`YuanbaoProvider` 已支持「本地铸造服务 URL + 静态签名」两种来源；
+   待补：App 内一键写入 `uskeyServiceUrl` 的入口 /「从剪贴板粘贴抓包签名」的账号配置 UI
+5. **更新检查三态**：区分「有更新 / 无更新 / 检查失败」；debug 构建放开或明确告知
+6. **Release 固定下载**：创建 GitHub Release 传 APK，解决 artifact 过期问题
+7. **更新下载应用内化**（可选）：应用内下载 + 进度 + 安装（`ApkInstaller` 已有，缺 UI 进度）
+8. **日志持久化**（可选）：`cacheDir` 会被系统清缓存 → 评估迁 `filesDir`（`util/timber/FileLoggingTree.kt`、`LogViewModel.kt`、`core/crash/CrashHandler.kt`）
 
 ## 4. 铁律（仓库强制，见 AGENTS.md）
 

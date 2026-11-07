@@ -2,6 +2,14 @@
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.providers
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -17,9 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.ai.rune.ziyong.transfer.gateway.AppUiState
 import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
@@ -34,6 +44,7 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
@@ -46,6 +57,20 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
  *
  * 排版对齐模板「个性化」页：`SmallTitle` + `PreferenceCard { ArrowPreference }`。
  */
+/**
+ * 供应商页内部的目标页。
+ *
+ * 用 sealed 目标 + [AnimatedContent] 代替「两个状态 + return」硬切换：
+ * 列表 → 详情、详情 → 编辑都是向右推入；返回反向滑出。返回路径沿层级回溯。
+ */
+private sealed interface ProvidersTarget {
+    /** 某个供应商的详情页。 */
+    data class Detail(val providerId: String) : ProvidersTarget
+
+    /** 自定义供应商的新建/编辑；`key` 为空串表示新建。 */
+    data class Edit(val key: String, val returnToDetail: String?) : ProvidersTarget
+}
+
 @Composable
 fun MiuixProvidersPage(
     enableBlur: Boolean,
@@ -58,57 +83,93 @@ fun MiuixProvidersPage(
     val layoutDirection = LocalLayoutDirection.current
     val backdrop = rememberMiuixBlurBackdrop(enableBlur)
 
-    // 二级页状态收在本 Tab 内部：返回仍停在「供应商」页
-    var openProviderId by remember { mutableStateOf<String?>(null) }
-    // 新建/编辑自定义供应商：null=未打开；""=新建；其它=编辑该 key
-    var editingCustomKey by remember { mutableStateOf<String?>(null) }
-    // 从详情进入编辑时记住来源，返回要回到详情
-    var returnToDetail by remember { mutableStateOf<String?>(null) }
+    // 当前目标（null = 列表）；返回仍停在「供应商」页，沿层级回退
+    var target by remember { mutableStateOf<ProvidersTarget?>(null) }
 
-    BackHandler(enabled = openProviderId != null || editingCustomKey != null) {
-        if (editingCustomKey != null) {
-            editingCustomKey = null
-            openProviderId = returnToDetail
-            returnToDetail = null
-        } else {
-            openProviderId = null
+    BackHandler(enabled = target != null) {
+        target = when (val current = target) {
+            is ProvidersTarget.Edit -> current.returnToDetail?.let { ProvidersTarget.Detail(it) }
+            else -> null
         }
     }
 
-    if (editingCustomKey != null) {
-        MiuixCustomProviderPage(
-            existingKey = editingCustomKey,
-            viewModel = viewModel,
-            onBack = {
-                editingCustomKey = null
-                openProviderId = returnToDetail
-                returnToDetail = null
-            },
-            onSaved = { providerId ->
-                editingCustomKey = null
-                returnToDetail = null
-                openProviderId = providerId
-            },
-            outerPadding = outerPadding,
-        )
-        return
-    }
+    // 二级页过渡：进入向右推入、返回反向滑出，与设置页二级页一致
+    AnimatedContent(
+        targetState = target,
+        transitionSpec = {
+            if (targetState == null) {
+                (slideInHorizontally(
+                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                    initialOffsetX = { -it / 4 },
+                ) + fadeIn(animationSpec = tween(320))) togetherWith
+                    (slideOutHorizontally(
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        targetOffsetX = { it },
+                    ) + fadeOut(animationSpec = tween(240)))
+            } else {
+                (slideInHorizontally(
+                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                    initialOffsetX = { it },
+                ) + fadeIn(animationSpec = tween(320))) togetherWith
+                    (slideOutHorizontally(
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        targetOffsetX = { -it / 4 },
+                    ) + fadeOut(animationSpec = tween(240)))
+            }
+        },
+        label = "providersPage",
+    ) { current ->
+        when (current) {
+            is ProvidersTarget.Detail -> MiuixProviderDetailPage(
+                providerId = current.providerId,
+                viewModel = viewModel,
+                onBack = { target = null },
+                outerPadding = outerPadding,
+                onEditCustom = { key ->
+                    target = ProvidersTarget.Edit(key, returnToDetail = current.providerId)
+                },
+            )
 
-    openProviderId?.let { id ->
-        MiuixProviderDetailPage(
-            providerId = id,
-            viewModel = viewModel,
-            onBack = { openProviderId = null },
-            outerPadding = outerPadding,
-            onEditCustom = { key ->
-                returnToDetail = id
-                openProviderId = null
-                editingCustomKey = key
-            },
-        )
-        return
-    }
+            is ProvidersTarget.Edit -> MiuixCustomProviderPage(
+                existingKey = current.key,
+                viewModel = viewModel,
+                onBack = {
+                    target = current.returnToDetail?.let { ProvidersTarget.Detail(it) } ?: null
+                },
+                onSaved = { providerId ->
+                    target = ProvidersTarget.Detail(providerId)
+                },
+                outerPadding = outerPadding,
+            )
 
+            null -> ProvidersListContent(
+                enableBlur = enableBlur,
+                title = title,
+                outerPadding = outerPadding,
+                uiState = uiState,
+                scrollBehavior = scrollBehavior,
+                layoutDirection = layoutDirection,
+                backdrop = backdrop,
+                onOpenDetail = { target = ProvidersTarget.Detail(it) },
+                onOpenNewCustom = { target = ProvidersTarget.Edit("", returnToDetail = null) },
+            )
+        }
+    }
+}
+
+/** 供应商列表（target == null 时的内容）。 */
+@Composable
+private fun ProvidersListContent(
+    enableBlur: Boolean,
+    title: String,
+    outerPadding: PaddingValues,
+    uiState: AppUiState,
+    scrollBehavior: MiuixScrollBehavior,
+    layoutDirection: LayoutDirection,
+    backdrop: LayerBackdrop?,
+    onOpenDetail: (String) -> Unit,
+    onOpenNewCustom: () -> Unit,
+) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -118,7 +179,7 @@ fun MiuixProvidersPage(
                 title = title,
                 scrollBehavior = scrollBehavior,
                 actions = {
-                    IconButton(onClick = { editingCustomKey = "" }) {
+                    IconButton(onClick = onOpenNewCustom) {
                         Icon(
                             imageVector = MiuixIcons.Regular.Add,
                             contentDescription = "新建自定义供应商",
@@ -162,7 +223,7 @@ fun MiuixProvidersPage(
                             NavigationRow(
                                 title = "账号",
                                 summary = "${provider.accountCount} 个 · 可用 ${provider.usableCount} 个",
-                                onClick = { openProviderId = provider.id },
+                                onClick = { onOpenDetail(provider.id) },
                             )
                         }
                     }

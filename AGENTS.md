@@ -11,7 +11,7 @@
 
 ## 关键事实
 
-- **R 中转**：把 Android 手机变成私有的 AI 模型聚合服务器——将 Trae / Loomy / WorkBuddy / Antigravity / ChatGPT / 小浣熊 / 自定义 OpenAI 兼容上游统一翻译成一个 OpenAI 兼容端点（包名 `app.ai.rune.ziyong.transfer`，应用名 `R 中转`）。
+- **R 中转**：把 Android 手机变成私有的 AI 模型聚合服务器——将 Trae / Loomy / WorkBuddy / Antigravity / ChatGPT / 小浣熊 / 腾讯元宝 / 自定义 OpenAI 兼容上游统一翻译成一个 OpenAI 兼容端点（包名 `app.ai.rune.ziyong.transfer`，应用名 `R 中转`）。
 - **模块**：`:core`（纯 Kotlin/JVM 网关内核，无 Android 依赖）、`:cli`（命令行工具 `aigw`）、`:app`（Android UI）、`:baselineprofile`、`build-plugins`（`rtransfer.*` 约定插件）。
 - **UI**：整套基于 **miuix**（`top.yukonga.miuix.kmp`），**不使用 Material3 组件**；底部 5 个 Tab（首页 / 供应商 / 模型 / 调用记录 / 设置）。
 - **状态**：`AppViewModel` 是全部业务状态的唯一来源（Koin `viewModelOf` 单例）；网关引擎是进程级单例（`App.gateway`）。

@@ -23,7 +23,7 @@ build-plugins      rtransfer.* 构建约定插件（AGP 版本、SDK、签名读
 | 包 | 职责 |
 |---|---|
 | `gateway/` | `GatewayEngine`（唯一引擎：端口监听 / 路由 / 流式转发）、`GatewayHttpServer`（nanohttpd）、`GatewaySettings`、`OpenAiApi`（OpenAI 兼容端点）、`BoundedAsyncRunner` / `ActiveRequests`（并发控制）、`EngineWatchdog`、`LoopbackCallbackServer`（登录回调） |
-| `provider/` | 供应商适配：`Provider`（接口）、`ProviderRegistry`、`ChatCall`、`LoginSupport`、`ProviderHooks`、`RoutedModel`；具体实现 `chatgpt/` `trae/` `loomy/` `codebuddy/` `antigravity/` `raccoon/` `custom/`（自定义 OpenAI 兼容） |
+| `provider/` | 供应商适配：`Provider`（接口）、`ProviderRegistry`、`ChatCall`、`LoginSupport`、`ProviderHooks`、`RoutedModel`；具体实现 `chatgpt/` `trae/` `loomy/` `codebuddy/` `antigravity/` `raccoon/` `custom/`（自定义 OpenAI 兼容）、`yuanbao/`（腾讯元宝，粘贴 Cookie 登录，对话需 qimei USKey 签名） |
 | `pool/` | `AccountPool`（账号池 / 冷却 / 配额）、`AccountTransfer`（导入导出格式） |
 | `failover/` | 容错：`ProviderCircuitBreaker`（熔断）、`ConcurrencyGate`（闸门）、`ModelCooldownTracker`（冷却）、`ProviderMetricsTracker`（指标）、`WeightedOrder`（加权序）、`FailoverConfig/Decision` |
 | `security/` | `RequestSanitizer`（脱敏）、`AccountRateLimiter`（账号限速）、`SecuritySettings` |

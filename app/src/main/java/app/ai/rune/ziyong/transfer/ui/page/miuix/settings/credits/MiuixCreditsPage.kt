@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,6 +79,11 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceActio
  * 最后一点很关键：模型专属配额（如某个模型的周额度）用完时，
  * 若不加区分就会被误当成「整个账号已耗尽」，从而白换账号。
  */
+private sealed interface CreditsTarget {
+    /** 单个供应商的额度明细页。 */
+    data class ProviderDetail(val providerId: String) : CreditsTarget
+}
+
 @Composable
 fun MiuixCreditsPage(
     viewModel: AppViewModel = koinViewModel(),
@@ -78,19 +91,63 @@ fun MiuixCreditsPage(
     outerPadding: PaddingValues,
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
-    var openProviderId by remember { mutableStateOf<String?>(null) }
 
-    if (openProviderId != null) {
-        MiuixProviderCreditsPage(
-            providerId = openProviderId!!,
-            state = uiState,
-            viewModel = viewModel,
-            onBack = { openProviderId = null },
-            outerPadding = outerPadding,
-        )
-        return
+    // 二级页目标（null = 总额度列表）；打开单个供应商明细时向右推入，返回反向滑出
+    var target by remember { mutableStateOf<CreditsTarget?>(null) }
+    androidx.activity.compose.BackHandler(enabled = target != null) { target = null }
+
+    AnimatedContent(
+        targetState = target,
+        transitionSpec = {
+            if (targetState == null) {
+                (slideInHorizontally(
+                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                    initialOffsetX = { -it / 4 },
+                ) + fadeIn(animationSpec = tween(320))) togetherWith
+                    (slideOutHorizontally(
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        targetOffsetX = { it },
+                    ) + fadeOut(animationSpec = tween(240)))
+            } else {
+                (slideInHorizontally(
+                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                    initialOffsetX = { it },
+                ) + fadeIn(animationSpec = tween(320))) togetherWith
+                    (slideOutHorizontally(
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        targetOffsetX = { -it / 4 },
+                    ) + fadeOut(animationSpec = tween(240)))
+            }
+        },
+        label = "creditsPage",
+    ) { current ->
+        when (current) {
+            is CreditsTarget.ProviderDetail -> MiuixProviderCreditsPage(
+                providerId = current.providerId,
+                state = uiState,
+                viewModel = viewModel,
+                onBack = { target = null },
+                outerPadding = outerPadding,
+            )
+
+            null -> CreditsListContent(
+                onBack = onBack,
+                outerPadding = outerPadding,
+                uiState = uiState,
+                onOpenProvider = { target = CreditsTarget.ProviderDetail(it) },
+            )
+        }
     }
+}
 
+/** 额度中心列表（target == null 时的内容）。 */
+@Composable
+private fun CreditsListContent(
+    onBack: () -> Unit,
+    outerPadding: PaddingValues,
+    uiState: AppUiState,
+    onOpenProvider: (String) -> Unit,
+) {
     val scrollBehavior = MiuixScrollBehavior()
     val layoutDirection = LocalLayoutDirection.current
     val backdrop = rememberMiuixBlurBackdrop(false)
@@ -173,7 +230,7 @@ fun MiuixCreditsPage(
                 item(key = info.id) {
                     val accounts = uiState.accountsOf(info.id)
                     val known = accounts.filter { it.creditsKnown }
-                    PreferenceCard(onClick = { openProviderId = info.id }) {
+                    PreferenceCard(onClick = { onOpenProvider(info.id) }) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
