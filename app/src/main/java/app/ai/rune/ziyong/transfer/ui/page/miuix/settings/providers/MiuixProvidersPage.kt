@@ -26,7 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ai.rune.ziyong.transfer.gateway.AppUiState
@@ -44,7 +43,6 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TopAppBar
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Add
@@ -79,9 +77,6 @@ fun MiuixProvidersPage(
     outerPadding: PaddingValues,
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
-    val scrollBehavior = MiuixScrollBehavior()
-    val layoutDirection = LocalLayoutDirection.current
-    val backdrop = rememberMiuixBlurBackdrop(enableBlur)
 
     // 当前目标（null = 列表）；返回仍停在「供应商」页，沿层级回退
     var target by remember { mutableStateOf<ProvidersTarget?>(null) }
@@ -147,9 +142,6 @@ fun MiuixProvidersPage(
                 title = title,
                 outerPadding = outerPadding,
                 uiState = uiState,
-                scrollBehavior = scrollBehavior,
-                layoutDirection = layoutDirection,
-                backdrop = backdrop,
                 onOpenDetail = { target = ProvidersTarget.Detail(it) },
                 onOpenNewCustom = { target = ProvidersTarget.Edit("", returnToDetail = null) },
             )
@@ -164,12 +156,13 @@ private fun ProvidersListContent(
     title: String,
     outerPadding: PaddingValues,
     uiState: AppUiState,
-    scrollBehavior: MiuixScrollBehavior,
-    layoutDirection: LayoutDirection,
-    backdrop: LayerBackdrop?,
     onOpenDetail: (String) -> Unit,
     onOpenNewCustom: () -> Unit,
 ) {
+    // 页面私有滚动/布局状态：在内容函数内部创建，避免跨函数传递 miuix 类型
+    val scrollBehavior = MiuixScrollBehavior()
+    val layoutDirection = LocalLayoutDirection.current
+    val backdrop = rememberMiuixBlurBackdrop(enableBlur)
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
