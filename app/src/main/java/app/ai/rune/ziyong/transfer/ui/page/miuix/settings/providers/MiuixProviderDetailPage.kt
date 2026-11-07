@@ -387,6 +387,7 @@ private fun AccountBlock(
         YuanbaoUskeyDialog(
             account = account,
             initial = viewModel.yuanbaoUskeyOf(provider.id, account.uid),
+            viewModel = viewModel,
             onDismiss = { showUskey = false },
             onSave = { config ->
                 viewModel.saveYuanbaoUskey(provider.id, account.uid, config)
@@ -437,6 +438,7 @@ private fun AccountBlock(
 private fun YuanbaoUskeyDialog(
     account: AccountStatus,
     initial: dev.aigw.core.provider.yuanbao.UskeyConfig,
+    viewModel: AppViewModel,
     onDismiss: () -> Unit,
     onSave: (dev.aigw.core.provider.yuanbao.UskeyConfig) -> Unit,
 ) {
@@ -447,6 +449,8 @@ private fun YuanbaoUskeyDialog(
         mutableStateOf(if (initial.timestamp > 0) initial.timestamp.toString() else "")
     }
     var params by remember(initial.params) { mutableStateOf(initial.params) }
+    var builtinState by remember { mutableStateOf("") } // "" 空闲 / "starting" 启动中 / "ok" 成功 / "error"
+    var builtinError by remember { mutableStateOf("") }
 
     WindowDialog(
         show = true,
@@ -456,8 +460,33 @@ private fun YuanbaoUskeyDialog(
         PreferenceCard {
             PreferenceHint(
                 "元宝对话需要 qimei USKey（浏览器环境铸造，短暂有效）。" +
-                    "推荐方式：先跑 `uskey_browser.py --serve 8787`，再填下面的铸造服务地址，每次对话自动取新鲜签名。",
+                    "可一键使用「内置铸造器」（本机 WebView 铸造，无需电脑），" +
+                    "或手动填铸造服务地址 / 静态签名。",
             )
+            // 一键内置铸造器
+            PreferenceButtonRow {
+                TextButton(
+                    text = "使用内置铸造器",
+                    enabled = builtinState != "starting",
+                    onClick = {
+                        builtinState = "starting"
+                        builtinError = ""
+                        viewModel.useBuiltinUskeyMinter()?.let { url ->
+                            serviceUrl = url
+                            builtinState = "ok"
+                        } ?: run {
+                            builtinState = "error"
+                            builtinError = viewModel.builtinUskeyError()
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            when (builtinState) {
+                "ok" -> PreferenceHint("内置铸造器已就绪：$serviceUrl（点击下方「保存」生效）")
+                "starting" -> PreferenceHint("正在启动内置铸造器（首次加载页面需几秒）…")
+                "error" -> PreferenceHint("内置铸造器启动失败：$builtinError", error = true)
+            }
             PreferenceBlock {
                 TextField(
                     value = serviceUrl,

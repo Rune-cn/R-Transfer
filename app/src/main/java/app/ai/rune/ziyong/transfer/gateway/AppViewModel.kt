@@ -24,6 +24,9 @@ import app.ai.rune.ziyong.transfer.ui.theme.parseHexColor
 import app.ai.rune.ziyong.transfer.gateway.service.GatewayService
 import app.ai.rune.ziyong.transfer.gateway.service.GatewayTileService
 import app.ai.rune.ziyong.transfer.gateway.service.LoginWaitService
+import app.ai.rune.ziyong.transfer.uskey.UskeyMinterManager
+import dev.aigw.core.provider.yuanbao.YuanbaoConstants
+import timber.log.Timber
 import dev.aigw.core.gateway.BatchActionResult
 import dev.aigw.core.gateway.BatchProgress
 import dev.aigw.core.gateway.BatchTarget
@@ -358,6 +361,7 @@ private class Snapshot(
 class AppViewModel(
     private val app: Application,
     private val engine: GatewayEngine,
+    private val uskeyMinter: UskeyMinterManager,
 ) : ViewModel() {
 
     /** 本次启动是否发生过端口回退；非空时会在启动成功后提示用户。 */
@@ -1512,6 +1516,65 @@ class AppViewModel(
             null
         }
         return credential?.uskey ?: dev.aigw.core.provider.yuanbao.UskeyConfig()
+    }
+
+    // ------------------------------------------------------------------ 内置 USKey 铸造器
+
+    /**
+     * 启动/确保内置铸造服务，并把本地地址写入所有元宝账号的 USKey 配置。
+     *
+     * 本地服务输出与外部 uskey_browser.py 相同契约；写入后对话框回填即显示
+     * 「铸造服务：http://127.0.0.1:PORT/uskey」。
+     *
+     * @return 本地服务地址；启动失败返回 null（原因可查 [builtinUskeyError]）。
+     */
+    fun useBuiltinUskeyMinter(): String? {
+        val running = uskeyMinter.ensureStarted(cookieProvider = { firstYuanbaoCookie() })
+        val url = uskeyMinter.serviceUrl
+        if (!running || url == null) return null
+        // 把所有元宝账号的 uskey.serviceUrl 统一指向内置服务（多账号共用同一设备指纹）。
+        // 写盘可能偶发异常（加密存储 IO），不能让它崩 UI。
+        runCatching {
+            for (account in engine.accounts(YuanbaoConstants.PROVIDER_ID)) {
+                val raw = engine.account(account.providerId, account.uid) ?: continue
+                val current = runCatching { dev.aigw.core.provider.yuanbao.YuanbaoCredential.parse(raw.secret) }
+                    .getOrNull() ?: continue
+                val updated = current.copy(uskey = current.uskey?.copy(serviceUrl = url)
+                    ?: dev.aigw.core.provider.yuanbao.UskeyConfig(serviceUrl = url))
+                engine.updateAccountSecret(account.providerId, account.uid, updated.toJson())
+            }
+        }.onFailure { e ->
+            Timber.w("写入内置 USKey 服务地址失败：${e.message}")
+        }
+        refresh()
+        return url
+    }
+
+    /** 停止内置铸造服务（删除全部元宝账号/彻底关闭时调用）。 */
+    fun stopBuiltinUskeyMinter() {
+        uskeyMinter.shutdown()
+        refresh()
+    }
+
+    /** 内置铸造成员是否在运行。 */
+    fun builtinUskeyRunning(): Boolean = uskeyMinter.isRunning
+
+    /** 内置构件当前地址；未运行返回 null。 */
+    fun builtinUskeyUrl(): String? = uskeyMinter.serviceUrl
+
+    /** 最近一次内置铸造的错误原因（供 UI 展示）。 */
+    fun builtinUskeyError(): String = uskeyMinter.lastError()
+
+    /** 取一个元宝账号的 Cookie 作为页面加载会话（任选一个已启用账号即可，h38 为设备指纹）。 */
+    private fun firstYuanbaoCookie(): String {
+        for (account in engine.accounts(YuanbaoConstants.PROVIDER_ID)) {
+            val raw = engine.account(account.providerId, account.uid) ?: continue
+            if (!account.usable) continue
+            val credential = runCatching { dev.aigw.core.provider.yuanbao.YuanbaoCredential.parse(raw.secret) }
+                .getOrNull() ?: continue
+            if (credential.cookie.isNotEmpty()) return credential.cookie
+        }
+        return ""
     }
 
     // ------------------------------------------------------------------ 设备指纹（Trae 专属）

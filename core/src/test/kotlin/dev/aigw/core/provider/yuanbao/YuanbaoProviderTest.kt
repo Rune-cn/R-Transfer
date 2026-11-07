@@ -171,4 +171,33 @@ class YuanbaoProviderTest {
         )
         assertFalse(result.status in 200..299, "不能连网的环境下应快速失败（而不是挂起）")
     }
+
+    @Test
+    fun `请求带 tools 时明确拒绝且不消耗 USKey`() {
+        // tools 检查在创建会话之前：即使没有 USKey 也不应报「缺少 USKey」，而是报「不支持工具」
+        val provider = YuanbaoProvider(hooks = dev.aigw.core.provider.ProviderHooks(), host = "http://127.0.0.1:1")
+        val credential = YuanbaoCredential(cookie = cookie)
+        val result = provider.openChat(
+            ProviderAccount("yuanbao", "user123", "元宝", credential.toJson()),
+            """{"model":"m1","stream":false,"tools":[{"type":"function","function":{"name":"search"}}],"messages":[{"role":"user","content":"hi"}]}""",
+        )
+        // StreamFailureChatCall: status=0, failure.kind=CLIENT, 消息包含「不支持工具调用」
+        assertEquals(0, result.status)
+        val failure = result.failure
+        assertNotNull(failure)
+        assertEquals(dev.aigw.core.provider.ErrorKind.CLIENT, failure.kind)
+        assertTrue(failure.message.contains("不支持工具调用"))
+    }
+
+    @Test
+    fun `tool_choice 单独出现也视为工具请求`() {
+        val provider = YuanbaoProvider(hooks = dev.aigw.core.provider.ProviderHooks(), host = "http://127.0.0.1:1")
+        val credential = YuanbaoCredential(cookie = cookie)
+        val result = provider.openChat(
+            ProviderAccount("yuanbao", "user123", "元宝", credential.toJson()),
+            """{"model":"m1","stream":false,"tool_choice":"auto","messages":[{"role":"user","content":"hi"}]}""",
+        )
+        assertNotNull(result.failure)
+        assertEquals(dev.aigw.core.provider.ErrorKind.CLIENT, result.failure!!.kind)
+    }
 }

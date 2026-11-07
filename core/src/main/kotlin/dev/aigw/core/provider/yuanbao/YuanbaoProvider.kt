@@ -107,6 +107,21 @@ class YuanbaoProvider(
         val agentId = YuanbaoConstants.DEFAULT_AGENT_ID
         val model = resolveModel(requestedModelOf(openAiBody))
 
+        // 元宝上游不支持 OpenAI function calling（前端只暴露联网搜索开关）。
+        // 客户端（Trae / MCP 客户端）发来的 tools 会得到明确拒绝，而不是收到
+        // 「没有 tool_calls 的回复」后让客户端猜「模型未开启工具调用」。
+        if (buildChatUsesTools(openAiBody)) {
+            hooks.onLog("元宝：客户端请求包含 tools，但上游不支持 function calling")
+            return StreamFailureChatCall(
+                0,
+                UpstreamError(
+                    ErrorKind.CLIENT,
+                    "元宝上游不支持工具调用（OpenAI function calling）：请关闭客户端的工具/MCP/搜索功能后重试，" +
+                        "或改用支持工具的模型。元宝内置的联网搜索由上游自动执行，无需客户端工具。",
+                ),
+            )
+        }
+
         // 创建会话需要 USKey；没有签名配置时直接拒绝，避免上游扣费。
         // 用「流内业务错误（CLIENT）」语义：网关立即中断并原样把原因返回给客户端，
         // 不换号、不重试、不计熔断——这是配置问题，不是账号或供应商故障。
@@ -378,12 +393,6 @@ class YuanbaoProvider(
      * 2. 铸造服务（账号级 [UskeyConfig.serviceUrl] 或 provider 默认地址）。
      * 都没有 → 抛异常（调用方转 FailedChatCall，不发起请求，避免扣费）。
      */
-    /**
-     * 需要签名的路径补三件套。签名来源优先级：
-     * 1. 账号凭证里的静态签名（浏览器抓包）；
-     * 2. 铸造服务（账号级 [UskeyConfig.serviceUrl] 或 provider 默认地址）。
-     * 都没有 → 抛异常（调用方转 FailedChatCall，不发起请求，避免扣费）。
-     */
     private fun signedHeaders(credential: YuanbaoCredential, path: String, body: String): Map<String, String> {
         if (YuanbaoConstants.USKEY_PATHS.none { path.contains(it) }) return emptyMap()
         val config = credential.uskey
@@ -401,7 +410,15 @@ class YuanbaoProvider(
             val minted = try {
                 mintFromService(service)
             } catch (e: Exception) {
-                throw UskeyRequiredException("USKey 铸造服务不可用（$service）：${e.message ?: "未知错误"}")
+                throw UskeyRequiredException(buildString {
+                    append("USKey 铸造服务不可用（$service）：")
+                    append(e.message ?: "未知错误")
+                    // 手机上 127.0.0.1 指向手机自身：服务跑在电脑上时手机连不上，是最常见的坑
+                    if (service.contains("127.0.0.1") || service.contains("localhost")) {
+                        append("。注意：127.0.0.1 在手机上是手机自己，连不到电脑；")
+                        append("请把服务地址改成电脑的局域网 IP（如 http://192.168.x.x:8787/uskey）")
+                    }
+                })
             }
             // X-HY93（qimei uuid）：铸造服务没给时回退设备 id
             return if (minted.containsKey("X-HY93")) minted
@@ -487,6 +504,14 @@ class YuanbaoProvider(
         }
         return openAiBody
     }
+
+    /** 请求体是否带 tools / tool_choice（元宝不支持，需降级并提示）。 */
+    private fun buildChatUsesTools(openAiBody: String): Boolean {
+        val obj = runCatching { JsonParser.parseString(openAiBody).asJsonObject }.getOrNull() ?: return false
+        return obj.arrayOrNull("tools")?.size()?.let { it > 0 } == true || obj.has("tool_choice")
+    }
+
+    private fun JsonObject.has(name: String): Boolean = get(name) != null && !get(name).isJsonNull
 
     private fun fetchModels(credential: YuanbaoCredential, agentId: String): List<ProviderModel> {
         // 最新模型列表接口（含 subModelList / supportFunctions）；旧 /api/models 作兜底

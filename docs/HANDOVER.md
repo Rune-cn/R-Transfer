@@ -294,14 +294,22 @@ AnimatedVisibility(
 
 元宝的**查询类接口**（用户信息 / 模型列表 / 额度）只需 Cookie；**对话**（`POST /api/chat/{cid}`）
 需要 qimei USKey 签名三件套（`X-Timestamp` / `X-Bus-Params-Md5` / `X-Uskey`），
-USKey 只能由浏览器环境铸造、且短暂有效。当前支持两种配置方式：
+USKey 只能由浏览器环境铸造、且短暂有效。当前支持三种配置方式（账号详情页
+「USKey 签名（对话必需）」入口）：
 
-1. **本地 USKey 铸造服务**：`uskey_browser.py --serve <port>`（Python，来自元宝逆向包），
-   地址填到供应商设置 `uskeyServiceUrl`，provider 每次对话前自动调用取新鲜签名；
-2. **静态签名**：浏览器抓包一次 `/api/chat` 请求，把 `X-Uskey` / `h38` 等填入账号凭证（短暂有效）。
+1. **内置铸造器**（推荐，无需电脑）：点「使用内置铸造器」——本机 WebView（系统 Chromium）
+   加载元宝页面 + 注入 `uskey_browser.py` 移植脚本（webpackChunk push → 模块 94482 →
+   QimeiWeb.getUSKeySync）现场签名；地址自动写入账号（`http://127.0.0.1:随机端口/uskey`）；
+   与外部服务输出同一契约，`:core` 的 `mintFromService` 无需改动。实现见
+   `app/src/main/java/.../uskey/`（WebViewUskeyMinter / LocalUskeyService / UskeyMinterManager，Koin single）。
+2. **外部铸造服务**：`uskey_browser.py --serve <port>`（Python）的地址填入
+   `uskeyServiceUrl`——注意手机上 `127.0.0.1` 指向手机自己，服务跑在电脑上时应填电脑的
+   局域网 IP（如 `http://192.168.x.x:8787/uskey`）。
+3. **静态签名**：浏览器抓包一次 `/api/chat` 请求，把 `X-Uskey` / `h38` 等填入账号凭证
+   （约 5 分钟有效，仅验证用）。
 
-两者都没配时，provider **不发起对话请求**（上游被拒时照样扣配额），返回带指引的错误。
-首次接入建议先跑通查询类接口，再按 §8 路线补 USKey。
+都没配时，provider **不发起对话请求**（上游被拒时照样扣配额），返回带指引的错误。
+首次接入建议先跑通查询类接口，再补 USKey。
 
 ---
 
