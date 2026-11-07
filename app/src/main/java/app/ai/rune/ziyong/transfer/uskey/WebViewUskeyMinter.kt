@@ -138,7 +138,7 @@ class WebViewUskeyMinter(
                 webView?.let { view ->
                     view.stopLoading()
                     // 先断开回调引用再 destroy，避免 onPageFinished 回调进死对象
-                    view.webViewClient = null
+                    view.webViewClient = WebViewClient()
                     view.settings.javaScriptEnabled = false
                     view.destroy()
                 }
@@ -304,9 +304,9 @@ class WebViewUskeyMinter(
         private const val CHAT_PAGE_URL = "https://yuanbao.tencent.com/chat/naQivTmsDa"
 
         /** 与逆向 headless Chromium 一致的桌面 UA（元宝按 web 端处理）。 */
-        private val CHROME_DESKTOP_UA =
+        private const val CHROME_DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
         /** 判断 qimei 是否就绪：localStorage 里出现 h38（剥引号后非空）。 */
         private const val H38_READY_SCRIPT =
