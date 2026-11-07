@@ -11,14 +11,12 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -30,7 +28,6 @@ import app.ai.rune.ziyong.transfer.ui.theme.miuixBlurEffect
 import app.ai.rune.ziyong.transfer.ui.theme.rememberMiuixBlurBackdrop
 import dev.aigw.core.gateway.CustomProviderConfig
 import org.koin.androidx.compose.koinViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -47,7 +44,6 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
-import top.yukonga.miuix.kmp.basic.Switch
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.foundation.layout.size
 
@@ -159,45 +155,23 @@ fun MiuixCustomProviderPage(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                text = "启用",
-                                style = MiuixTheme.textStyles.subtitle,
-                                color = MiuixTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = "关闭后该供应商的模型不再对外暴露",
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            )
-                        }
-                        Switch(
-                            checked = enabled,
-                            onCheckedChange = { enabled = it },
-                        )
-                    }
+                    SwitchRow(
+                        title = "启用",
+                        summary = "关闭后该供应商的模型不再对外暴露",
+                        checked = enabled,
+                        onCheckedChange = { enabled = it },
+                    )
                 }
             }
 
             item { SmallTitle("怎么填") }
             item {
                 PreferenceCard {
-                    BasicComponent(
-                        title = "接口地址",
-                        summary = "多数中转站填到 /v1 即可，例如 https://api.example.com/v1；" +
+                    PreferenceHint(
+                        "接口地址：多数中转站填到 /v1 即可，例如 https://api.example.com/v1；" +
                             "若服务商要求完整路径，也可直接写 /v1/chat/completions",
                     )
-                    BasicComponent(
-                        title = "下一步",
-                        summary = "保存后进入该供应商，用「添加账号」填入 API Key 与模型名",
-                    )
+                    PreferenceHint("下一步：保存后进入该供应商，用「添加账号」填入 API Key 与模型名。")
                 }
             }
 

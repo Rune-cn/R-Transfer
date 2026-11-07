@@ -41,7 +41,6 @@ import dev.aigw.core.provider.QuotaPack
 import java.text.DateFormat
 import java.util.Date
 import org.koin.androidx.compose.koinViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -58,6 +57,8 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.ui.text.style.TextOverflow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
 
 /**
  * 额度中心：按供应商查看各账号的额度包明细。
@@ -135,10 +136,7 @@ fun MiuixCreditsPage(
             if (providersWithAccounts.isEmpty()) {
                 item {
                     PreferenceCard {
-                        BasicComponent(
-                            title = "还没有账号",
-                            summary = "先去「供应商」页添加账号，额度会显示在这里。",
-                        )
+                        PreferenceHint("还没有账号。先去「供应商」页添加账号，额度会显示在这里。")
                     }
                 }
                 item { Spacer(modifier = Modifier.navigationBarsPadding()) }
@@ -149,15 +147,16 @@ fun MiuixCreditsPage(
             item {
                 PreferenceCard {
                     val known = uiState.accounts.filter { it.creditsKnown }
-                    BasicComponent(
+                    NavigationRow(
                         title = "额度合计",
                         summary = if (known.isEmpty()) {
                             "尚未同步额度"
                         } else {
                             "${known.sumOf { it.credits }}（已同步 ${known.size} 个账号）"
                         },
+                        onClick = {},
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "刷新全部",
                         summary = "向所有上游重新拉取额度，可能需要几十秒",
                         onClick = { viewModel.refreshAllCredits() },
@@ -295,10 +294,7 @@ private fun MiuixProviderCreditsPage(
             if (accounts.isEmpty()) {
                 item {
                     PreferenceCard {
-                        BasicComponent(
-                            title = "还没有账号",
-                            summary = "先去该供应商页添加账号。",
-                        )
+                        PreferenceHint("还没有账号。先去该供应商页添加账号。")
                     }
                 }
                 item { Spacer(modifier = Modifier.navigationBarsPadding()) }
@@ -312,7 +308,7 @@ private fun MiuixProviderCreditsPage(
                 val bills = state.pointsBills["$providerId/${account.uid}"]
 
                 PreferenceCard {
-                    BasicComponent(
+                    NavigationRow(
                         title = account.nickname.ifEmpty { account.uid },
                         summary = buildString {
                             append("余额 ")
@@ -320,6 +316,7 @@ private fun MiuixProviderCreditsPage(
                             append(" · ")
                             append(if (account.disabled) "凭证失效" else if (!account.enabled) "已停用" else "可用")
                         },
+                        onClick = {},
                     )
 
                     if (packs.isEmpty()) {

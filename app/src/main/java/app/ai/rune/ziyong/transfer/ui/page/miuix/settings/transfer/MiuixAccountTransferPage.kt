@@ -44,14 +44,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
@@ -64,6 +62,8 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.foundation.layout.size
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SwitchRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
 
 /** 勾选树里的账号：导出（AccountStatus）与导入（ProviderAccount）共用。 */
 private data class SelectableAccount(val providerId: String, val uid: String, val nickname: String) {
@@ -226,29 +226,12 @@ fun MiuixAccountTransferPage(
                         color = MiuixTheme.colorScheme.error,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                text = "导出全部账号",
-                                style = MiuixTheme.textStyles.subtitle,
-                                color = MiuixTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = if (exportAll) {
-                                    "共 $exportCount 个账号"
-                                } else {
-                                    "已勾选 $exportCount 个"
-                                },
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            )
-                        }
-                        Switch(checked = exportAll, onCheckedChange = { exportAll = it })
-                    }
+                    SwitchRow(
+                        title = "导出全部账号",
+                        summary = if (exportAll) "共 $exportCount 个账号" else "已勾选 $exportCount 个",
+                        checked = exportAll,
+                        onCheckedChange = { exportAll = it },
+                    )
 
                     if (!exportAll) {
                         AccountTree(
@@ -353,9 +336,10 @@ fun MiuixAccountTransferPage(
                             .filter { it.second.isNotEmpty() }
                         val unknown = accounts.filter { uiState.providerOf(it.providerId) == null }
 
-                        BasicComponent(
+                        NavigationRow(
                             title = "文件里有 ${accounts.size} 个账号",
                             summary = "已选 ${importSelection.size} 个",
+                            onClick = {},
                         )
                         if (unknown.isNotEmpty()) {
                             Text(
@@ -366,25 +350,12 @@ fun MiuixAccountTransferPage(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    text = "覆盖同名账号",
-                                    style = MiuixTheme.textStyles.subtitle,
-                                    color = MiuixTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    text = "关闭时，已存在的账号保持原样（跳过）",
-                                    style = MiuixTheme.textStyles.footnote2,
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                )
-                            }
-                            Switch(checked = overwrite, onCheckedChange = { overwrite = it })
-                        }
+                        SwitchRow(
+                            title = "覆盖同名账号",
+                            summary = "关闭时，已存在的账号保持原样（跳过）",
+                            checked = overwrite,
+                            onCheckedChange = { overwrite = it },
+                        )
 
                         // 主操作放在列表之前：账号多时不用滚到底才能找到导入按钮
                         TextButton(
@@ -415,10 +386,11 @@ fun MiuixAccountTransferPage(
             result?.let { outcome ->
                 item {
                     PreferenceCard {
-                        BasicComponent(
+                        NavigationRow(
                             title = "导入完成",
                             summary = "新增 ${outcome.added.size} · 覆盖 ${outcome.updated.size} · " +
                                 "跳过 ${outcome.skipped.size} · 未知供应商 ${outcome.unknownProviders.size}",
+                            onClick = {},
                         )
                         if (outcome.skipped.isNotEmpty()) {
                             Text(
