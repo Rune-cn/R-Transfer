@@ -65,6 +65,7 @@ import top.yukonga.miuix.kmp.window.WindowDialog
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.endpoints.MiuixEndpointsPage
 import androidx.activity.compose.BackHandler
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.keepalive.MiuixKeepAlivePage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer.MiuixAccountTransferPage
 
 @Composable
 fun MiuixPreferredPage(
@@ -85,8 +86,13 @@ fun MiuixPreferredPage(
     // 设置页内部的二级页：进入后返回仍停在本 Tab
     var openEndpoints by remember { mutableStateOf(false) }
     var openKeepAlive by remember { mutableStateOf(false) }
-    BackHandler(enabled = openEndpoints || openKeepAlive) {
-        if (openKeepAlive) openKeepAlive = false else openEndpoints = false
+    var openTransfer by remember { mutableStateOf(false) }
+    BackHandler(enabled = openEndpoints || openKeepAlive || openTransfer) {
+        when {
+            openTransfer -> openTransfer = false
+            openKeepAlive -> openKeepAlive = false
+            else -> openEndpoints = false
+        }
     }
     if (openEndpoints) {
         MiuixEndpointsPage(
@@ -100,6 +106,14 @@ fun MiuixPreferredPage(
         MiuixKeepAlivePage(
             viewModel = gatewayViewModel,
             onBack = { openKeepAlive = false },
+            outerPadding = outerPadding,
+        )
+        return
+    }
+    if (openTransfer) {
+        MiuixAccountTransferPage(
+            viewModel = gatewayViewModel,
+            onBack = { openTransfer = false },
             outerPadding = outerPadding,
         )
         return
@@ -216,6 +230,11 @@ fun MiuixPreferredPage(
                             "有待处理项：锁屏后可能连不上"
                         },
                         onClick = { openKeepAlive = true },
+                    )
+                    BasicComponent(
+                        title = "账号导入导出",
+                        summary = "换机与备份：共 ${gateway.pool.total} 个账号（含凭证，请勿外传）",
+                        onClick = { openTransfer = true },
                     )
                 }
             }
