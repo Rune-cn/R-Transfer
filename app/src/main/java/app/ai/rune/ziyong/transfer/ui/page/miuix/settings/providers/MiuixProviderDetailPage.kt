@@ -55,6 +55,7 @@ import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import top.yukonga.miuix.kmp.icon.extended.Edit
 
 /**
  * 供应商详情：登录入口 + 账号管理。
@@ -75,6 +76,8 @@ fun MiuixProviderDetailPage(
     viewModel: AppViewModel = koinViewModel(),
     onBack: () -> Unit,
     outerPadding: PaddingValues,
+    // 仅自定义供应商提供：跳到编辑页（名称/地址/启用）
+    onEditCustom: ((String) -> Unit)? = null,
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
     val provider = remember(uiState.providers, providerId) {
@@ -102,6 +105,17 @@ fun MiuixProviderDetailPage(
                     }
                 },
                 scrollBehavior = scrollBehavior,
+                actions = {
+                    if (provider?.custom == true && onEditCustom != null) {
+                        IconButton(onClick = { onEditCustom(provider.id.removePrefix("custom:")) }) {
+                            Icon(
+                                imageVector = MiuixIcons.Regular.Edit,
+                                contentDescription = "编辑供应商",
+                                tint = MiuixTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                },
             )
         },
     ) { innerPadding ->

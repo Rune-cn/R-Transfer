@@ -45,6 +45,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
 
 /**
  * 供应商页：按供应商分组列出账号与可用状态。
@@ -64,8 +68,40 @@ fun MiuixProvidersPage(
     // 二级页状态放在本 Tab 内部：进入详情后返回仍在「供应商」页，
     // 而不是回到首页——这是用户对「点进去再退出来」的默认预期。
     var openProviderId by remember { mutableStateOf<String?>(null) }
+    // 新建/编辑自定义供应商：null=未打开；""=新建；其它=编辑该 key
+    var editingCustomKey by remember { mutableStateOf<String?>(null) }
+    // 记录「从详情页点进来编辑」的上一个页面，返回时要回到它，而不是直接落到列表
+    var returnToDetail by remember { mutableStateOf<String?>(null) }
 
-    BackHandler(enabled = openProviderId != null) { openProviderId = null }
+    BackHandler(enabled = openProviderId != null || editingCustomKey != null) {
+        if (editingCustomKey != null) {
+            editingCustomKey = null
+            openProviderId = returnToDetail
+            returnToDetail = null
+        } else {
+            openProviderId = null
+        }
+    }
+
+    if (editingCustomKey != null) {
+        MiuixCustomProviderPage(
+            existingKey = editingCustomKey,
+            viewModel = viewModel,
+            onBack = {
+                editingCustomKey = null
+                openProviderId = returnToDetail
+                returnToDetail = null
+            },
+            onSaved = { providerId ->
+                // 保存后直接进入该供应商，省去用户再找一遍
+                editingCustomKey = null
+                returnToDetail = null
+                openProviderId = providerId
+            },
+            outerPadding = outerPadding,
+        )
+        return
+    }
 
     openProviderId?.let { id ->
         MiuixProviderDetailPage(
@@ -73,6 +109,12 @@ fun MiuixProvidersPage(
             viewModel = viewModel,
             onBack = { openProviderId = null },
             outerPadding = outerPadding,
+            onEditCustom = { key ->
+                // 记住当前详情页，编辑返回时回到这里
+                returnToDetail = id
+                openProviderId = null
+                editingCustomKey = key
+            },
         )
         return
     }
@@ -89,6 +131,15 @@ fun MiuixProvidersPage(
                 color = backdrop.getMiuixAppBarColor(),
                 title = title,
                 scrollBehavior = scrollBehavior,
+                actions = {
+                    IconButton(onClick = { editingCustomKey = "" }) {
+                        Icon(
+                            imageVector = MiuixIcons.Regular.Add,
+                            contentDescription = "新建自定义供应商",
+                            tint = MiuixTheme.colorScheme.primary,
+                        )
+                    }
+                },
             )
         },
     ) { innerPadding ->
