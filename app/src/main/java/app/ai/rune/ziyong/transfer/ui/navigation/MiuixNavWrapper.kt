@@ -13,6 +13,7 @@ import app.ai.rune.ziyong.transfer.R
 import app.ai.rune.ziyong.transfer.domain.settings.model.preferences.ThemeState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.icon.extended.ListView
 import top.yukonga.miuix.kmp.icon.extended.NotesFill
 import top.yukonga.miuix.kmp.icon.extended.Store
 import top.yukonga.miuix.kmp.icon.extended.Tune
@@ -44,6 +45,7 @@ fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedVie
     val configCount = 0 // 网关页面暂不需要角标
     val homeLabel = stringResource(R.string.home)
     val configLabel = "供应商"
+    val modelsLabel = "模型"
     val logLabel = stringResource(R.string.run_logs)
     val preferredLabel = stringResource(R.string.preferred)
 
@@ -55,7 +57,7 @@ fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedVie
     //   供应商 Store     —— 账号来源是「商店/货架」语义，比 Layers（图层）更贴近
     //   日志   NotesFill —— 实心稿在大底栏更压得住；Notes 留给「文档」语义
     //   设置   Tune      —— 调节旋钮，与「偏好设置」一致；Settings 齿轮留给深层的系统设置
-    val navigationItems = remember(homeLabel, configLabel, logLabel, preferredLabel) {
+    val navigationItems = remember(homeLabel, configLabel, modelsLabel, logLabel, preferredLabel) {
         listOf(
             NavigationItem(
                 label = homeLabel,
@@ -64,6 +66,10 @@ fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedVie
             NavigationItem(
                 label = configLabel,
                 icon = MiuixIcons.Regular.Store,
+            ),
+            NavigationItem(
+                label = modelsLabel,
+                icon = MiuixIcons.Regular.ListView,
             ),
             NavigationItem(
                 label = logLabel,

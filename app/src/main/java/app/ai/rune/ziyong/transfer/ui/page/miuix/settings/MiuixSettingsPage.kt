@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,35 +16,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.ai.rune.ziyong.transfer.R
-import app.ai.rune.ziyong.transfer.ui.icons.AppIcons
 import app.ai.rune.ziyong.transfer.ui.library.FloatingBottomBar
 import app.ai.rune.ziyong.transfer.ui.library.FloatingBottomBarMode
 import app.ai.rune.ziyong.transfer.ui.navigation.LocalNavigator
 import app.ai.rune.ziyong.transfer.ui.navigation.MainPagerState
-import app.ai.rune.ziyong.transfer.ui.navigation.Route
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.home.MiuixHomePage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.log.MiuixCallLogPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.models.MiuixModelsPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.providers.MiuixProvidersPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.preferred.MiuixPreferredPage
-import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode
@@ -60,7 +51,6 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberNavigationRailState
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurColors
@@ -376,13 +366,19 @@ private fun SettingsPagerContent(
                 outerPadding = outerPadding,
             )
 
-            2 -> MiuixCallLogPage(
+            2 -> MiuixModelsPage(
                 enableBlur = useBlur,
                 title = navigationItems[page].label,
                 outerPadding = outerPadding,
             )
 
-            3 -> MiuixPreferredPage(
+            3 -> MiuixCallLogPage(
+                enableBlur = useBlur,
+                title = navigationItems[page].label,
+                outerPadding = outerPadding,
+            )
+
+            4 -> MiuixPreferredPage(
                 enableBlur = useBlur,
                 title = navigationItems[page].label,
                 outerPadding = outerPadding,
@@ -393,12 +389,3 @@ private fun SettingsPagerContent(
 }
 
 
-@Composable
-private fun ExamplePage(title: String) {
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = { TopAppBar(title = title) },
-    ) { contentPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(contentPadding))
-    }
-}
