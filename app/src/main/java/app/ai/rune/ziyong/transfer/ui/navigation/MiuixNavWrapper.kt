@@ -28,10 +28,16 @@ import org.koin.compose.koinInject
 import top.yukonga.miuix.kmp.basic.NavigationItem
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import app.ai.rune.ziyong.transfer.gateway.AppViewModel
+import org.koin.androidx.compose.koinViewModel
 
 // Centralized complex layout logic to keep provider clean and readable
 @Composable
-fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedViewModel) {
+fun MiuixMainPageWrapper(
+    uiState: ThemeState,
+    sharedViewModel: SettingsSharedViewModel,
+    gatewayViewModel: AppViewModel = koinViewModel(),
+) {
     val layoutInfo = LocalWindowLayoutInfo.current
     val sharedState by sharedViewModel.state.collectAsStateWithLifecycle()
     val useBlur = uiState.useBlur
@@ -103,6 +109,18 @@ fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedVie
     )
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // 全局提示：AppViewModel.notice 是各页面上报结果/错误的唯一通道
+    //（启动失败、权限被拒、导入结果等）。此前没有任何地方消费它，
+    // 导致所有失败都表现为「点了没反应」——必须在这里接住。
+    val gatewayState by gatewayViewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(gatewayState.notice) {
+        val message = gatewayState.notice
+        if (message.isNotEmpty()) {
+            snackbarHostState.showSnackbar(message)
+            gatewayViewModel.consumeNotice()
+        }
+    }
 
     // Create separated backdrops for different blurred components
     val floatingBackdrop = rememberLayerBackdrop()

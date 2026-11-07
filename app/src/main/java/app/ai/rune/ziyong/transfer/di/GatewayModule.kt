@@ -25,12 +25,16 @@ import org.koin.dsl.module
 val gatewayModule = module {
 
     /**
-     * 把 Application 本身登记进容器。
+     * 把 Application 登记进容器。
      *
-     * Koin 的 androidContext() 提供的是 Context，而 AppViewModel 需要 Application
-     * （用于 startService / 安装 APK）。显式绑定可以避免各处再写 `as Application` 强转。
+     * **必须显式声明类型为 Application**：`single { androidApplication() as App }`
+     * 会让 Koin 把 bean 的类型推断成 `App`，而 `AppViewModel` 的构造参数是
+     * `Application`——两者在 Koin 的类型索引里不是同一个 key，
+     * 注入会直接失败（页面整个渲染不出来，表现为「点了没反应」）。
+     *
+     * 同时用 bind 让 `App` 也能被注入（需要 attachGateway 等成员时用）。
      */
-    single { androidApplication() as App }
+    single<Application> { androidApplication() } bind App::class
 
     /**
      * 凭证加密存储。

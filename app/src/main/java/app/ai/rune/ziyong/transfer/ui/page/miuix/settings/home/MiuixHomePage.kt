@@ -76,6 +76,8 @@ import androidx.core.app.ActivityCompat
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.findActivity
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 import top.yukonga.miuix.kmp.basic.SmallTitle
+import androidx.compose.runtime.setValue
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.CardHint
 
 /**
  * 首页：网关控制台。
@@ -148,6 +150,19 @@ fun MiuixHomePage(
         scope.launch {
             runCatching { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("text", text))) }
         }
+    }
+
+    // 上一次启动失败的原因：成功启动后清空。
+    // 从 notice 里提取——启动失败时 ViewModel 写入的是「启动失败：xxx」。
+    var lastStartError by remember { mutableStateOf("") }
+    LaunchedEffect(uiState.notice) {
+        val message = uiState.notice
+        if (message.startsWith("启动失败：")) {
+            lastStartError = message.removePrefix("启动失败：")
+        }
+    }
+    LaunchedEffect(uiState.running) {
+        if (uiState.running) lastStartError = ""
     }
 
     LaunchedEffect(Unit) {
@@ -230,6 +245,15 @@ fun MiuixHomePage(
                                 if (on) startWithPermission() else viewModel.stopGateway()
                             },
                         )
+                    }
+
+                    // 启动失败的具体原因直接显示在这里：Snackbar 会消失，
+                    // 而「为什么打不开」是用户最需要留着看的信息。
+                    if (lastStartError.isNotEmpty()) {
+                        CardHint("启动失败：$lastStartError", error = true)
+                    }
+                    if (uiState.busy.isNotEmpty()) {
+                        CardHint(uiState.busy)
                     }
                 }
             }
