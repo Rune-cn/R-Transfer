@@ -12,6 +12,8 @@ import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
+import android.app.Application
+import org.koin.core.module.dsl.bind
 
 /**
  * 网关内核的依赖装配。
