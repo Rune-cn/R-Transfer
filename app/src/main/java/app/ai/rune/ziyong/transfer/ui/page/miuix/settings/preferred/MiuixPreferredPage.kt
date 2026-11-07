@@ -64,6 +64,7 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.endpoints.MiuixEndpointsPage
 import androidx.activity.compose.BackHandler
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.keepalive.MiuixKeepAlivePage
 
 @Composable
 fun MiuixPreferredPage(
@@ -83,11 +84,22 @@ fun MiuixPreferredPage(
 
     // 设置页内部的二级页：进入后返回仍停在本 Tab
     var openEndpoints by remember { mutableStateOf(false) }
-    BackHandler(enabled = openEndpoints) { openEndpoints = false }
+    var openKeepAlive by remember { mutableStateOf(false) }
+    BackHandler(enabled = openEndpoints || openKeepAlive) {
+        if (openKeepAlive) openKeepAlive = false else openEndpoints = false
+    }
     if (openEndpoints) {
         MiuixEndpointsPage(
             viewModel = gatewayViewModel,
             onBack = { openEndpoints = false },
+            outerPadding = outerPadding,
+        )
+        return
+    }
+    if (openKeepAlive) {
+        MiuixKeepAlivePage(
+            viewModel = gatewayViewModel,
+            onBack = { openKeepAlive = false },
             outerPadding = outerPadding,
         )
         return
@@ -195,6 +207,15 @@ fun MiuixPreferredPage(
                         title = "接入设置",
                         summary = "端口、API Key 与客户端要填的地址",
                         onClick = { openEndpoints = true },
+                    )
+                    BasicComponent(
+                        title = "保活与权限",
+                        summary = if (gateway.keepAlive?.allGood == true) {
+                            "系统条件已就绪"
+                        } else {
+                            "有待处理项：锁屏后可能连不上"
+                        },
+                        onClick = { openKeepAlive = true },
                     )
                 }
             }
