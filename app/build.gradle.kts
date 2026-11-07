@@ -1,5 +1,6 @@
 import com.mikepenz.aboutlibraries.plugin.DuplicateMode
 import com.mikepenz.aboutlibraries.plugin.DuplicateRule
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -55,7 +56,7 @@ android {
     signingConfigs {
         if (hasCustomSigning) {
             register("releaseCustom") {
-                this.storeFile = java.io.File(storeFile)
+                this.storeFile = File(storeFile)
                 this.storePassword = storePassword
                 this.keyAlias = keyAlias
                 this.keyPassword = keyPassword
