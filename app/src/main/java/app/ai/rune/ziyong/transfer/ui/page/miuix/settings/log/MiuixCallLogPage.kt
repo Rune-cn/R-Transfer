@@ -48,6 +48,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
+import androidx.compose.foundation.layout.fillMaxWidth
 
 /**
  * 调用记录：网关处理过的每一次请求。
