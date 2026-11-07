@@ -1470,6 +1470,50 @@ class AppViewModel(
         }
     }
 
+    // ------------------------------------------------------------------ 元宝 USKey 配置
+
+    /**
+     * 保存元宝账号的 USKey 配置（铸造服务地址或静态签名）。
+     *
+     * 从当前账号凭证解析出 [YuanbaoCredential]，替换 uskey 字段后写回；
+     * 凭证里没有 Cookie 时（异常状态）直接放弃，不覆盖原账号。
+     */
+    fun saveYuanbaoUskey(providerId: String, uid: String, config: dev.aigw.core.provider.yuanbao.UskeyConfig) {
+        viewModelScope.launch {
+            val account = engine.account(providerId, uid) ?: return@launch
+            val current = try {
+                dev.aigw.core.provider.yuanbao.YuanbaoCredential.parse(account.secret)
+            } catch (_: Exception) {
+                null
+            }
+            if (current == null) {
+                notice("凭证格式异常，无法写入 USKey 配置")
+                return@launch
+            }
+            val updated = current.copy(uskey = config).toJson()
+            withContext(Dispatchers.IO) { engine.updateAccountSecret(providerId, uid, updated) }
+            notice(
+                if (config.hasStatic() || config.serviceUrl.isNotEmpty()) {
+                    "USKey 配置已保存"
+                } else {
+                    "已清除 USKey 配置：对话将被拒绝（避免白扣额度）"
+                },
+            )
+            refresh()
+        }
+    }
+
+    /** 读取元宝账号当前 USKey 配置（用于回填对话框）；无配置返回空配置。 */
+    fun yuanbaoUskeyOf(providerId: String, uid: String): dev.aigw.core.provider.yuanbao.UskeyConfig {
+        val account = engine.account(providerId, uid) ?: return dev.aigw.core.provider.yuanbao.UskeyConfig()
+        val credential = try {
+            dev.aigw.core.provider.yuanbao.YuanbaoCredential.parse(account.secret)
+        } catch (_: Exception) {
+            null
+        }
+        return credential?.uskey ?: dev.aigw.core.provider.yuanbao.UskeyConfig()
+    }
+
     // ------------------------------------------------------------------ 设备指纹（Trae 专属）
 
     private fun traeProvider(): TraeProvider =

@@ -15,6 +15,7 @@ import dev.aigw.core.provider.ProviderAccount
 import dev.aigw.core.provider.ProviderHooks
 import dev.aigw.core.provider.ProviderModel
 import dev.aigw.core.provider.ProviderModelCatalogView
+import dev.aigw.core.provider.StreamFailureChatCall
 import dev.aigw.core.provider.StreamingChatCall
 import dev.aigw.core.provider.UpstreamError
 import dev.aigw.core.provider.isStreamingBody
@@ -106,11 +107,13 @@ class YuanbaoProvider(
         val agentId = YuanbaoConstants.DEFAULT_AGENT_ID
         val model = resolveModel(requestedModelOf(openAiBody))
 
-        // 创建会话需要 USKey；没有签名配置时直接拒绝，避免上游扣费
+        // 创建会话需要 USKey；没有签名配置时直接拒绝，避免上游扣费。
+        // 用「流内业务错误（CLIENT）」语义：网关立即中断并原样把原因返回给客户端，
+        // 不换号、不重试、不计熔断——这是配置问题，不是账号或供应商故障。
         val cid = try {
             createConversation(credential, agentId)
         } catch (e: UskeyRequiredException) {
-            return FailedChatCall(0, e.message ?: "缺少 USKey")
+            return StreamFailureChatCall(0, UpstreamError(ErrorKind.CLIENT, e.message ?: "缺少 USKey"))
         } catch (e: Exception) {
             return FailedChatCall(0, e.message ?: "创建会话失败")
         }
@@ -118,7 +121,7 @@ class YuanbaoProvider(
         val conn = try {
             openChatConnection(credential, cid, agentId, model, openAiBody)
         } catch (e: UskeyRequiredException) {
-            return FailedChatCall(0, e.message ?: "缺少 USKey")
+            return StreamFailureChatCall(0, UpstreamError(ErrorKind.CLIENT, e.message ?: "缺少 USKey"))
         } catch (e: Exception) {
             return FailedChatCall(0, e.message ?: "连接失败")
         }
