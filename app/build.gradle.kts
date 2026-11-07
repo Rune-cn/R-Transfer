@@ -13,6 +13,14 @@ plugins {
 android {
     namespace = "app.ai.rune.ziyong.transfer"
 
+    /**
+     * 签名来源：优先 keystore.properties（本地），其次环境变量（CI）。
+     *
+     * 为什么必须固定签名：debug 与 release 若各自用「每次构建新生成」的密钥，
+     * 前后两次安装的签名就不同，Android 会拒绝覆盖安装并提示「应用签名不一致」，
+     * 用户只能先卸载——而卸载会清掉全部账号与设置。
+     * CI 通过 Secrets 还原同一份密钥库，保证每次产物都能原地升级。
+     */
     val properties = Properties()
     val keystorePropertiesFile = rootProject.file("keystore.properties")
     if (keystorePropertiesFile.exists()) {
@@ -22,11 +30,15 @@ android {
             println("Warning: Could not load keystore.properties file: ${e.message}")
         }
     }
-    val storeFile = properties.getProperty("storeFile") ?: System.getenv("KEYSTORE_FILE")
-    val storePassword = properties.getProperty("storePassword") ?: System.getenv("KEYSTORE_PASSWORD")
-    val keyAlias = properties.getProperty("keyAlias") ?: System.getenv("KEY_ALIAS")
-    val keyPassword = properties.getProperty("keyPassword") ?: System.getenv("KEY_PASSWORD")
-    val hasCustomSigning = storeFile != null && storePassword != null && keyAlias != null && keyPassword != null
+    fun signingValue(propKey: String, envKey: String): String? =
+        properties.getProperty(propKey) ?: System.getenv(envKey)?.takeIf { it.isNotBlank() }
+
+    val storeFile = signingValue("storeFile", "RELEASE_STORE_FILE")
+    val storePassword = signingValue("storePassword", "RELEASE_STORE_PASSWORD")
+    val keyAlias = signingValue("keyAlias", "RELEASE_KEY_ALIAS")
+    val keyPassword = signingValue("keyPassword", "RELEASE_KEY_PASSWORD")
+    val hasCustomSigning =
+        storeFile != null && storePassword != null && keyAlias != null && keyPassword != null
 
     defaultConfig {
         // If you use miuix-example source code, package it into apk or other installation package format
@@ -43,7 +55,7 @@ android {
     signingConfigs {
         if (hasCustomSigning) {
             register("releaseCustom") {
-                this.storeFile = rootProject.file(storeFile)
+                this.storeFile = java.io.File(storeFile)
                 this.storePassword = storePassword
                 this.keyAlias = keyAlias
                 this.keyPassword = keyPassword

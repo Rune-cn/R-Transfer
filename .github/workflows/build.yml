@@ -69,9 +69,32 @@ jobs:
         if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_core_tests)
         run: ./gradlew :core:test --stacktrace
 
+      # ---- 签名：必须在任何构建之前还原 ----
+      # debug 与 release 共用同一份密钥库，否则两者的签名不同：
+      # 既装不上对方的包，前后两次构建也无法互相覆盖，用户只能卸载重装（会丢账号）。
+      - name: 还原签名密钥库
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::未配置 RELEASE_KEYSTORE_BASE64，将使用临时签名（无法覆盖安装）"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          test -s "$RUNNER_TEMP/release.jks"
+          echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       # 只出 Stable flavor：Unstable/Preview 是模板遗留的版本梯度标记，
       # 三个都构建会产出三份几乎相同的 APK（约 78MB），对使用者没有价值。
       - name: 构建 Debug APK
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew :app:assembleStableDebug --stacktrace
 
       - name: 上传 Debug APK
@@ -83,25 +106,6 @@ jobs:
           path: app/build/outputs/apk/Stable/debug/*.apk
           if-no-files-found: error
           retention-days: 14
-
-      # ---- Release：密钥库从 Secrets 还原，密码只以环境变量传递，不在磁盘落明文配置 ----
-      - name: 还原签名密钥库
-        id: signing
-        if: github.event_name != 'pull_request'
-        env:
-          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-        run: |
-          set -euo pipefail
-          if [ -z "${KEYSTORE_BASE64:-}" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::未配置 RELEASE_KEYSTORE_BASE64，跳过 release 构建"
-            exit 0
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          # 只校验文件存在与可读，不打印任何凭证
-          test -s "$RUNNER_TEMP/release.jks"
-          echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: 构建 Release APK
         if: steps.signing.outputs.available == 'true'

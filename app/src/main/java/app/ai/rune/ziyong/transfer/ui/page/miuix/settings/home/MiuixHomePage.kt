@@ -72,6 +72,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.basic.Switch
+import androidx.core.app.ActivityCompat
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.findActivity
 
 /**
  * 首页：网关控制台。
@@ -100,16 +102,43 @@ fun MiuixHomePage(
     // 用户看起来就是「服务没起来」；启动前先补上授权请求。
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { viewModel.startGateway() }
-
-    fun startWithPermission() {
-        val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+    ) { granted ->
         if (granted) {
             viewModel.startGateway()
         } else {
+            // 用户拒绝后如果还坚持启动，前台服务仍可运行（通知会被系统隐藏），
+            // 但很多 ROM 会因此把服务判为不可见并很快回收，所以这里如实告知而不是静默失败。
+            viewModel.notice("未授予通知权限：网关仍会尝试启动，但后台可能被系统回收；建议到「保活与权限」里开启")
+            viewModel.startGateway()
+        }
+    }
+
+    fun startWithPermission() {
+        // API 33 以下没有 POST_NOTIFICATIONS 这个运行时权限，直接启动
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            viewModel.startGateway()
+            return
+        }
+        val granted = context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.startGateway()
+            return
+        }
+        // 已经「拒绝且不再询问」时 launch 不会再弹窗、回调也不会触发，
+        // 开关会看起来点了没反应。用 shouldShowRequestPermissionRationale 区分这两种情况：
+        // false 且未授权 => 系统不会再问，只能引导去设置页手动开。
+        val activity = context.findActivity()
+        val canAskAgain = activity == null ||
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.POST_NOTIFICATIONS,
+            )
+        if (canAskAgain) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.notice("通知权限已被永久拒绝，请到系统设置里手动开启；网关将先尝试启动")
+            viewModel.startGateway()
         }
     }
 

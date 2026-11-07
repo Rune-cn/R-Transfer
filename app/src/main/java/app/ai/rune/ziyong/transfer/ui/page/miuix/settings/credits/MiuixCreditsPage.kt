@@ -59,6 +59,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import androidx.compose.ui.text.style.TextOverflow
 
 /**
  * 额度中心：按供应商查看各账号的额度包明细。
@@ -400,31 +401,34 @@ private fun QuotaPackRow(pack: QuotaPack) {
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = if (pack.group.isEmpty()) pack.name else "${pack.name}（${pack.group}）",
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurface,
-                )
-                // 模型专属配额：不标出来会被误当成账号总额度
-                if (pack.scope.isNotEmpty()) {
-                    Text(
-                        text = pack.scope,
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.primary,
-                    )
-                }
-            }
-            if (expireText.isNotEmpty()) {
-                Text(
-                    text = expireText,
-                    style = MiuixTheme.textStyles.footnote2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
-            }
+        // 名称与过期时间上下排：额度包名往往很长（含分组），与时间挤在一行会互相挤压，
+        // 窄屏上时间被压成两行、名称被截断，读起来都很别扭。
+        Text(
+            text = if (pack.group.isEmpty()) pack.name else "${pack.name}（${pack.group}）",
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        // 模型专属配额：不标出来会被误当成账号总额度
+        if (pack.scope.isNotEmpty()) {
+            Text(
+                text = pack.scope,
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.primary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (expireText.isNotEmpty()) {
+            Text(
+                text = "有效期至 $expireText",
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+            )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -450,10 +454,19 @@ private fun QuotaPackRow(pack: QuotaPack) {
             }
             Text(
                 text = if (fraction != null) {
-                    "${(fraction * 100).toInt()}% (${pack.remain}/${pack.limit})"
+                    "${(fraction * 100).toInt()}%"
                 } else {
                     "剩余 ${pack.remain}"
                 },
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+        if (fraction != null) {
+            Text(
+                text = "剩余 ${pack.remain} / ${pack.limit}",
                 style = MiuixTheme.textStyles.footnote2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )

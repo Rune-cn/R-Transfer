@@ -69,6 +69,7 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer.MiuixAccountT
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits.MiuixCreditsPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.security.MiuixSecurityPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.resilience.MiuixResiliencePage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.findActivity
 
 @Composable
 fun MiuixPreferredPage(
@@ -417,10 +418,4 @@ fun MiuixPreferredPage(
         visible = showUpdateLoading,
         text = stringResource(R.string.checking_update),
     )
-}
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
