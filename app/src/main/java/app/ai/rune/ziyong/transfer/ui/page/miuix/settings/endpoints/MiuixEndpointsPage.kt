@@ -2,16 +2,14 @@
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.endpoints
 
 import android.content.ClipData
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -29,38 +27,35 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ai.rune.ziyong.transfer.gateway.AppViewModel
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceActionRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceBlock
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SwitchRow
 import app.ai.rune.ziyong.transfer.ui.theme.getMiuixAppBarColor
 import app.ai.rune.ziyong.transfer.ui.theme.miuixBlurEffect
 import app.ai.rune.ziyong.transfer.ui.theme.rememberMiuixBlurBackdrop
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 
 /**
  * 接入设置：客户端要用的地址、端口与 API Key。
  *
- * 这一页回答「我该往客户端里填什么」——是使用这个应用的必要信息，
- * 所以地址条放在最上面，且点击即可复制。
- *
- * 端口与 Key 采用「编辑后点保存」而非即时生效：
- * 改端口会重建监听，逐字符保存会让服务在用户还在输入时反复重启。
+ * 排版对齐模板「关于」页：SmallTitle 分组 + PreferenceCard。
+ * 地址条用 NavigationRow（点击复制），可点击性一眼可见。
  */
 @Composable
 fun MiuixEndpointsPage(
@@ -113,41 +108,40 @@ fun MiuixEndpointsPage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item { Spacer(modifier = Modifier.size(12.dp)) }
+
             item { SmallTitle("客户端填这些") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     val localUrl = uiState.localUrl.ifEmpty { "http://127.0.0.1:${uiState.port}/v1" }
-                    BasicComponent(
+                    NavigationRow(
                         title = "接口地址（本机）",
                         summary = localUrl,
                         onClick = { copy(localUrl) },
                     )
                     val lanUrl = uiState.lanUrls.firstOrNull()
-                    BasicComponent(
+                    NavigationRow(
                         title = "接口地址（局域网）",
                         summary = lanUrl ?: "未连接 Wi-Fi 或未开启局域网监听",
-                        onClick = lanUrl?.let { url -> { copy(url) } },
+                        onClick = { lanUrl?.let { copy(it) } },
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "API Key",
-                        summary = if (settings.apiKey.isBlank()) {
-                            if (settings.allowNoKey) "当前不校验（可留空）" else "⚠ 已关闭无 Key 调用但未设置 Key"
-                        } else {
-                            settings.apiKey
+                        summary = when {
+                            settings.apiKey.isNotBlank() -> settings.apiKey
+                            settings.allowNoKey -> "当前不校验（可留空）"
+                            else -> "已关闭无 Key 调用，但尚未设置 Key"
                         },
-                        onClick = settings.apiKey.takeIf { it.isNotBlank() }?.let { key ->
-                            { copy(key) }
-                        },
+                        onClick = { settings.apiKey.takeIf { it.isNotBlank() }?.let { copy(it) } },
                     )
-                    BasicComponent(
+                    NavigationRow(
                         title = "模型列表地址",
                         summary = "${localUrl.removeSuffix("/v1")}/v1/models",
                         onClick = { copy("${localUrl.removeSuffix("/v1")}/v1/models") },
@@ -157,8 +151,8 @@ fun MiuixEndpointsPage(
 
             item { SmallTitle("端口与网络") }
             item {
-                PreferenceCard() {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PreferenceCard {
+                    PreferenceBlock {
                         TextField(
                             value = port,
                             onValueChange = { port = it.filter(Char::isDigit).take(5) },
@@ -168,28 +162,22 @@ fun MiuixEndpointsPage(
                             modifier = Modifier.fillMaxWidth(),
                         )
                         if (uiState.running && port != uiState.port.toString()) {
-                            Text(
-                                text = "端口改动需重启网关后生效",
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.error,
-                            )
+                            PreferenceHint("端口改动需重启网关后生效", error = true)
                         }
                     }
                     SwitchRow(
                         title = "同时监听局域网",
-                        subtitle = "关闭时仅 127.0.0.1 可访问；开启会把端口暴露给同网段设备",
+                        summary = "关闭时仅 127.0.0.1 可访问；开启会把端口暴露给同网段设备",
                         checked = settings.exposeLan,
-                        onCheckedChange = {
-                            viewModel.updateSettings(settings.copy(exposeLan = it))
-                        },
+                        onCheckedChange = { viewModel.updateSettings(settings.copy(exposeLan = it)) },
                     )
                 }
             }
 
             item { SmallTitle("鉴权") }
             item {
-                PreferenceCard() {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PreferenceCard {
+                    PreferenceBlock {
                         TextField(
                             value = apiKey,
                             onValueChange = { apiKey = it },
@@ -197,36 +185,31 @@ fun MiuixEndpointsPage(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        TextButton(
-                            text = "生成随机 Key",
-                            onClick = { apiKey = randomApiKey() },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
                     }
+                    PreferenceActionRow(
+                        text = "生成随机 Key",
+                        onClick = { apiKey = randomApiKey() },
+                    )
                     SwitchRow(
                         title = "允许无 Key 调用",
-                        subtitle = "关闭后客户端必须携带上面的 Key 才能调用",
+                        summary = "关闭后客户端必须携带上面的 Key 才能调用",
                         checked = settings.allowNoKey,
-                        onCheckedChange = {
-                            viewModel.updateSettings(settings.copy(allowNoKey = it))
-                        },
+                        onCheckedChange = { viewModel.updateSettings(settings.copy(allowNoKey = it)) },
                     )
                 }
             }
 
             item {
-                PreferenceCard() {
-                    TextButton(
+                PreferenceCard {
+                    PreferenceActionRow(
                         text = "保存",
                         onClick = {
                             val parsed = port.toIntOrNull()
                             if (parsed == null || parsed !in 1024..65535) {
                                 viewModel.notice("端口需要在 1024~65535 之间")
-                                return@TextButton
+                                return@PreferenceActionRow
                             }
-                            viewModel.updateSettings(
-                                settings.copy(port = parsed, apiKey = apiKey.trim()),
-                            )
+                            viewModel.updateSettings(settings.copy(port = parsed, apiKey = apiKey.trim()))
                             viewModel.notice(
                                 if (uiState.running && parsed != uiState.port) {
                                     "已保存；端口改动需重启网关生效"
@@ -235,7 +218,6 @@ fun MiuixEndpointsPage(
                                 },
                             )
                         },
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -249,33 +231,4 @@ fun MiuixEndpointsPage(
 private fun randomApiKey(): String {
     val chars = "0123456789abcdef"
     return (1..32).map { chars.random() }.joinToString("")
-}
-
-/** 行内开关（标题 + 说明 + Switch）。 */
-@Composable
-private fun SwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MiuixTheme.textStyles.subtitle,
-                color = MiuixTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = subtitle,
-                style = MiuixTheme.textStyles.footnote2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
 }
