@@ -2,6 +2,7 @@
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.models
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -179,16 +185,23 @@ fun MiuixModelsPage(
                                     }
                                 },
                             )
-                            if (!isCollapsed) {
-                                for (model in models) {
-                                    ModelRow(
-                                        model = model,
-                                        exposureEnabled = uiState.modelExposure.filterEnabled,
-                                        exposed = uiState.modelExposure.allows(model.fullId),
-                                        onToggleExposed = {
-                                            viewModel.toggleModelExposed(model.fullId, it)
-                                        },
-                                    )
+                            // 折叠/展开带垂直展开动画，与模板条件行的节奏一致
+                            AnimatedVisibility(
+                                visible = !isCollapsed,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically(),
+                            ) {
+                                Column {
+                                    for (model in models) {
+                                        ModelRow(
+                                            model = model,
+                                            exposureEnabled = uiState.modelExposure.filterEnabled,
+                                            exposed = uiState.modelExposure.allows(model.fullId),
+                                            onToggleExposed = {
+                                                viewModel.toggleModelExposed(model.fullId, it)
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }

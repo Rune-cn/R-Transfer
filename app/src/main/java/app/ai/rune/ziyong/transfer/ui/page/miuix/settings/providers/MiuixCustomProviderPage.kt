@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.providers
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -12,6 +9,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,14 +35,12 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
@@ -48,6 +48,9 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.foundation.layout.size
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SwitchRow
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceBlock
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceActionRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceButtonRow
 
 /**
  * 自定义供应商的新建 / 编辑。
@@ -125,7 +128,8 @@ fun MiuixCustomProviderPage(
             item { SmallTitle("基本信息") }
             item {
                 PreferenceCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 输入区统一 PreferenceBlock：与其余页面 TextField 的水平边距一致
+                    PreferenceBlock {
                         TextField(
                             value = name,
                             onValueChange = { name = it },
@@ -142,12 +146,13 @@ fun MiuixCustomProviderPage(
                             enabled = existing == null,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        if (!keyValid && key.isNotEmpty()) {
-                            Text(
-                                text = "短名只能包含英文字母、数字与连字符",
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.error,
-                            )
+                        // 校验失败提示：出现/消失跟随动画，与模板条件行一致
+                        AnimatedVisibility(
+                            visible = !keyValid && key.isNotEmpty(),
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically(),
+                        ) {
+                            PreferenceHint("短名只能包含英文字母、数字与连字符", error = true)
                         }
                         TextField(
                             value = baseUrl,
@@ -178,34 +183,36 @@ fun MiuixCustomProviderPage(
             }
 
             item {
-                TextButton(
-                    text = "保存",
-                    onClick = {
-                        val trimmedKey = key.trim()
-                        val config = CustomProviderConfig(
-                            key = trimmedKey,
-                            name = name.trim().ifEmpty { trimmedKey },
-                            baseUrl = baseUrl.trim(),
-                            // 账号级信息沿用原值，不在本页改动
-                            apiKeys = existing?.apiKeys.orEmpty(),
-                            models = existing?.models.orEmpty(),
-                            enabled = enabled,
-                        )
-                        viewModel.saveCustomProvider(config)
-                        onSaved(config.providerId)
-                    },
-                    enabled = keyValid && baseUrl.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                PreferenceCard {
+                    PreferenceActionRow(
+                        text = "保存",
+                        onClick = {
+                            val trimmedKey = key.trim()
+                            val config = CustomProviderConfig(
+                                key = trimmedKey,
+                                name = name.trim().ifEmpty { trimmedKey },
+                                baseUrl = baseUrl.trim(),
+                                // 账号级信息沿用原值，不在本页改动
+                                apiKeys = existing?.apiKeys.orEmpty(),
+                                models = existing?.models.orEmpty(),
+                                enabled = enabled,
+                            )
+                            viewModel.saveCustomProvider(config)
+                            onSaved(config.providerId)
+                        },
+                        enabled = keyValid && baseUrl.isNotBlank(),
+                    )
+                }
             }
 
             if (existing != null) {
                 item {
-                    TextButton(
-                        text = "删除该供应商",
-                        onClick = { confirmDelete = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    PreferenceCard {
+                        PreferenceActionRow(
+                            text = "删除该供应商",
+                            onClick = { confirmDelete = true },
+                        )
+                    }
                 }
             }
 
@@ -219,29 +226,26 @@ fun MiuixCustomProviderPage(
             title = "删除这个供应商？",
             onDismissRequest = { confirmDelete = false },
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = "「${existing.name.ifEmpty { existing.key }}」及其全部账号、模型配置都会被移除，" +
-                        "调用过它的客户端将无法再使用。此操作不可撤销。",
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            PreferenceHint(
+                "「${existing.name.ifEmpty { existing.key }}」及其全部账号、模型配置都会被移除，" +
+                    "调用过它的客户端将无法再使用。此操作不可撤销。",
+                error = true,
+            )
+            PreferenceButtonRow {
+                TextButton(
+                    text = "取消",
+                    onClick = { confirmDelete = false },
+                    modifier = Modifier.weight(1f),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        text = "取消",
-                        onClick = { confirmDelete = false },
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(
-                        text = "删除",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            confirmDelete = false
-                            viewModel.removeCustomProvider(existing.key)
-                            onBack()
-                        },
-                    )
-                }
+                TextButton(
+                    text = "删除",
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        confirmDelete = false
+                        viewModel.removeCustomProvider(existing.key)
+                        onBack()
+                    },
+                )
             }
         }
     }

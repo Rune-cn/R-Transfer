@@ -171,6 +171,26 @@ PreferenceButtonRow {
 
 必须 `import top.yukonga.miuix.kmp.icon.extended.X`，写全限定路径无法解析。
 
+### 5.5 条件项出现/收起必须带过渡动画
+
+基准「个性化」页的所有条件展开项都用：
+
+```kotlin
+AnimatedVisibility(
+    visible = ...,
+    enter = fadeIn() + expandVertically(),
+    exit = fadeOut() + shrinkVertically(),
+) { ... }
+```
+
+- **凡是条件渲染（开关联动出现、列表展开/收起、错误提示、加载状态）都要用它**，
+  不要用裸 `if` 硬切（2026-11-07 已把这些改齐：模型折叠、导入预览/结果、导出树、
+  悬浮窗权限入口、端口提示、短名校验、启动失败提示等）。
+- **`visible` 必须绑定真实状态**；不要写成 `AnimatedVisibility(visible = true)` 包 `if`
+  ——那等于没动画，退场动画永远不会播放。
+- 卡片内的说明文字一律用 `PreferenceHint`（自带 16dp 水平内边距），
+  不要直接往 `PreferenceCard` 里塞裸 `Text`（会贴边）。
+
 ---
 
 ## 6. 签名与发版（★ 关系到用户能否覆盖安装）
@@ -317,6 +337,8 @@ PATCH /repos/{repo}/git/refs/heads/main  {"sha": commit.sha}
 
 - [x] 新页面用 `PreferenceCard`，没有直接往 `Card` 塞裸 `Text`/`Row`
 - [ ] 并排按钮用 `PreferenceButtonRow` + 原生 `TextButton`；整行主操作用 `PreferenceActionRow`
+- [ ] 条件项用 `AnimatedVisibility(fadeIn+expandVertically / fadeOut+shrinkVertically)`，visible 绑定真实状态
+- [ ] 卡片内说明文字用 `PreferenceHint`，没有裸 `Text` 贴边
 - [ ] `remember` 不在 `LazyListScope` / 非 Composable lambda 里
 - [ ] `MiuixIcons.Regular.X` 有对应 import
 - [ ] 没有 `app.ai.rune...` 的全限定写法（会与 `AppViewModel` 的 `app` 参数冲突）

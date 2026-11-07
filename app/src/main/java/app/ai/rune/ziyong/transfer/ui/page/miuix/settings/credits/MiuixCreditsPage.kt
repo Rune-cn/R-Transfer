@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -47,7 +48,6 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -59,6 +59,7 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.ui.text.style.TextOverflow
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceActionRow
 
 /**
  * 额度中心：按供应商查看各账号的额度包明细。
@@ -133,7 +134,9 @@ fun MiuixCreditsPage(
             ),
             overscrollEffect = null,
         ) {
+            // 列表页首统一 12dp 顶距（与模板所有页面一致）
             if (providersWithAccounts.isEmpty()) {
+                item { Spacer(modifier = Modifier.size(12.dp)) }
                 item {
                     PreferenceCard {
                         PreferenceHint("还没有账号。先去「供应商」页添加账号，额度会显示在这里。")
@@ -143,6 +146,7 @@ fun MiuixCreditsPage(
                 return@LazyColumn
             }
 
+            item { Spacer(modifier = Modifier.size(12.dp)) }
             item { SmallTitle("额度概览") }
             item {
                 PreferenceCard {
@@ -173,7 +177,7 @@ fun MiuixCreditsPage(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -292,6 +296,7 @@ private fun MiuixProviderCreditsPage(
             overscrollEffect = null,
         ) {
             if (accounts.isEmpty()) {
+                item { Spacer(modifier = Modifier.size(12.dp)) }
                 item {
                     PreferenceCard {
                         PreferenceHint("还没有账号。先去该供应商页添加账号。")
@@ -301,6 +306,7 @@ private fun MiuixProviderCreditsPage(
                 return@LazyColumn
             }
 
+            item { Spacer(modifier = Modifier.size(12.dp)) }
             item { SmallTitle("账号额度") }
             items(accounts.size, key = { accounts[it].uid }) { index ->
                 val account = accounts[index]
@@ -320,16 +326,13 @@ private fun MiuixProviderCreditsPage(
                     )
 
                     if (packs.isEmpty()) {
-                        Text(
+                        PreferenceHint(
                             text = when {
                                 // 账本型供应商没有额度包，额度就是积分余额
                                 hasLedger -> "该供应商没有额度包，积分流水见下"
                                 !account.creditsKnown && account.detail.isNotEmpty() -> account.detail
                                 else -> "没有额度包明细"
                             },
-                            style = MiuixTheme.textStyles.footnote2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
                         for (pack in packs) {
@@ -342,24 +345,23 @@ private fun MiuixProviderCreditsPage(
                             text = "积分明细",
                             style = MiuixTheme.textStyles.subtitle,
                             color = MiuixTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(top = 8.dp),
+                            modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
                         )
                         when {
-                            bills == null -> Hint("正在加载积分明细…")
-                            bills.error.isNotEmpty() -> Hint("加载失败：${bills.error}", error = true)
-                            bills.bills.isEmpty() -> Hint("暂无积分明细")
+                            bills == null -> PreferenceHint("正在加载积分明细…")
+                            bills.error.isNotEmpty() -> PreferenceHint("加载失败：${bills.error}", error = true)
+                            bills.bills.isEmpty() -> PreferenceHint("暂无积分明细")
                             else -> for (bill in bills.bills) PointsBillRow(bill)
                         }
                     }
 
-                    TextButton(
+                    PreferenceActionRow(
                         text = "刷新",
                         onClick = {
                             viewModel.refreshCredits(providerId, account.uid)
                             viewModel.loadCreditPacks(providerId, account.uid)
                             if (hasLedger) viewModel.loadPointsBills(providerId, account.uid)
                         },
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -394,7 +396,10 @@ private fun QuotaPackRow(pack: QuotaPack) {
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        // 与表格行一致的水平内边距，避免进度条贴卡片边缘
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         // 名称与过期时间上下排：额度包名往往很长（含分组），与时间挤在一行会互相挤压，
@@ -480,7 +485,9 @@ private fun PointsBillRow(bill: PointsBill) {
         }
     }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -508,14 +515,4 @@ private fun PointsBillRow(bill: PointsBill) {
             },
         )
     }
-}
-
-@Composable
-private fun Hint(text: String, error: Boolean = false) {
-    Text(
-        text = text,
-        style = MiuixTheme.textStyles.footnote2,
-        color = if (error) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        modifier = Modifier.fillMaxWidth(),
-    )
 }

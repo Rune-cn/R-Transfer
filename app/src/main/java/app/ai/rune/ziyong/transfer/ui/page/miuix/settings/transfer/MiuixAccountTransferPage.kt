@@ -4,6 +4,11 @@ package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer
 import android.content.ClipData
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,6 +69,9 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.foundation.layout.size
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SwitchRow
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceActionRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceButtonRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
 
 /** 勾选树里的账号：导出（AccountStatus）与导入（ProviderAccount）共用。 */
 private data class SelectableAccount(val providerId: String, val uid: String, val nickname: String) {
@@ -220,11 +228,9 @@ fun MiuixAccountTransferPage(
             item { SmallTitle("导出") }
             item {
                 PreferenceCard {
-                    Text(
-                        text = "导出内容含各账号的登录凭证（token），请勿外传。全程只经剪贴板或你选定的文件，不联网。",
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.error,
-                        modifier = Modifier.fillMaxWidth(),
+                    PreferenceHint(
+                        "导出内容含各账号的登录凭证（token），请勿外传。全程只经剪贴板或你选定的文件，不联网。",
+                        error = true,
                     )
                     SwitchRow(
                         title = "导出全部账号",
@@ -233,7 +239,12 @@ fun MiuixAccountTransferPage(
                         onCheckedChange = { exportAll = it },
                     )
 
-                    if (!exportAll) {
+                    // 切换「全部 / 自选」时树形勾选区展开收起，与模板条件行的动画节奏一致
+                    AnimatedVisibility(
+                        visible = !exportAll,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                    ) {
                         AccountTree(
                             groups = exportGroups,
                             displayName = { id -> uiState.providerOf(id)?.displayName ?: id },
@@ -242,42 +253,43 @@ fun MiuixAccountTransferPage(
                         )
                     }
 
-                    TextButton(
-                        text = "复制到剪贴板",
-                        onClick = {
-                            if (exportCount == 0) {
-                                viewModel.notice("没有选中任何账号")
-                                return@TextButton
-                            }
-                            val json = currentExportJson()
-                            exportedChars = json.length
-                            scope.launch {
-                                runCatching {
-                                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("accounts", json)))
+                    PreferenceButtonRow {
+                        TextButton(
+                            text = "复制到剪贴板",
+                            onClick = {
+                                if (exportCount == 0) {
+                                    viewModel.notice("没有选中任何账号")
+                                    return@TextButton
                                 }
-                                viewModel.notice("已复制 $exportCount 个账号")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    TextButton(
-                        text = "导出为 JSON 文件",
-                        onClick = {
-                            if (exportCount == 0) {
-                                viewModel.notice("没有选中任何账号")
-                                return@TextButton
-                            }
-                            saveLauncher.launch("r-transfer-accounts.json")
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    if (exportedChars > 0) {
-                        Text(
-                            text = "最近一次导出：$exportedChars 字符",
-                            style = MiuixTheme.textStyles.footnote2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.fillMaxWidth(),
+                                val json = currentExportJson()
+                                exportedChars = json.length
+                                scope.launch {
+                                    runCatching {
+                                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("accounts", json)))
+                                    }
+                                    viewModel.notice("已复制 $exportCount 个账号")
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
                         )
+                        TextButton(
+                            text = "导出为 JSON 文件",
+                            onClick = {
+                                if (exportCount == 0) {
+                                    viewModel.notice("没有选中任何账号")
+                                    return@TextButton
+                                }
+                                saveLauncher.launch("r-transfer-accounts.json")
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    AnimatedVisibility(
+                        visible = exportedChars > 0,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                    ) {
+                        PreferenceHint("最近一次导出：$exportedChars 字符")
                     }
                 }
             }
@@ -285,11 +297,8 @@ fun MiuixAccountTransferPage(
             item { SmallTitle("导入") }
             item {
                 PreferenceCard {
-                    Text(
-                        text = "粘贴导出内容，或选择一个 .json 文件。内容贴进来会自动识别，列出账号后可勾选要导入哪些。",
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.fillMaxWidth(),
+                    PreferenceHint(
+                        "粘贴导出内容，或选择一个 .json 文件。内容贴进来会自动识别，列出账号后可勾选要导入哪些。",
                     )
                     TextField(
                         value = importText,
@@ -301,113 +310,110 @@ fun MiuixAccountTransferPage(
                         // 长 JSON 铺满整屏会把下方按钮顶出视口，限高 + 内部滚动
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                             .heightIn(max = 200.dp),
                         minLines = 3,
                     )
-                    TextButton(
+                    PreferenceActionRow(
                         text = "从文件选择 .json",
                         onClick = { openLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
-                        modifier = Modifier.fillMaxWidth(),
                     )
 
+                    // 识别状态：错误红字 / 进行中灰字，出现与消失都带动画
                     when {
-                        importError.isNotEmpty() -> Text(
-                            text = importError,
-                            style = MiuixTheme.textStyles.footnote2,
-                            color = MiuixTheme.colorScheme.error,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-
-                        importText.isNotBlank() && parsed == null -> Text(
-                            text = "正在识别…",
-                            style = MiuixTheme.textStyles.footnote2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        importError.isNotEmpty() -> PreferenceHint(importError, error = true)
+                        importText.isNotBlank() && parsed == null -> PreferenceHint("正在识别…")
                     }
                 }
             }
 
-            parsed?.let { accounts ->
-                item {
-                    PreferenceCard {
-                        val grouped = uiState.providers
-                            .map { info -> info.id to accounts.filter { it.providerId == info.id } }
-                            .filter { it.second.isNotEmpty() }
-                        val unknown = accounts.filter { uiState.providerOf(it.providerId) == null }
+            // 导入预览：始终占位 item，visible 驱动动画（直接按条件 emit item 无法播放退场动画）
+            item(key = "import-preview") {
+                val accounts = parsed
+                AnimatedVisibility(
+                    visible = accounts != null,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    if (accounts != null) {
+                        PreferenceCard {
+                            val grouped = uiState.providers
+                                .map { info -> info.id to accounts.filter { it.providerId == info.id } }
+                                .filter { it.second.isNotEmpty() }
+                            val unknown = accounts.filter { uiState.providerOf(it.providerId) == null }
 
-                        NavigationRow(
-                            title = "文件里有 ${accounts.size} 个账号",
-                            summary = "已选 ${importSelection.size} 个",
-                            onClick = {},
-                        )
-                        if (unknown.isNotEmpty()) {
-                            Text(
-                                text = "本机没有这些供应商，将被跳过：" +
-                                    unknown.map { it.providerId }.distinct().joinToString("、"),
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.error,
-                                modifier = Modifier.fillMaxWidth(),
+                            NavigationRow(
+                                title = "文件里有 ${accounts.size} 个账号",
+                                summary = "已选 ${importSelection.size} 个",
+                                onClick = {},
+                            )
+                            if (unknown.isNotEmpty()) {
+                                PreferenceHint(
+                                    "本机没有这些供应商，将被跳过：" +
+                                        unknown.map { it.providerId }.distinct().joinToString("、"),
+                                    error = true,
+                                )
+                            }
+                            SwitchRow(
+                                title = "覆盖同名账号",
+                                summary = "关闭时，已存在的账号保持原样（跳过）",
+                                checked = overwrite,
+                                onCheckedChange = { overwrite = it },
+                            )
+
+                            // 主操作放在列表之前：账号多时不用滚到底才能找到导入按钮
+                            PreferenceActionRow(
+                                text = "导入选中的 ${importSelection.size} 个账号",
+                                enabled = importSelection.isNotEmpty(),
+                                onClick = {
+                                    if (importSelection.isEmpty()) {
+                                        importError = "没有选中任何账号"
+                                        return@PreferenceActionRow
+                                    }
+                                    result = viewModel.importAccountsJson(importText, importSelection, overwrite)
+                                    importError = ""
+                                    viewModel.refresh()
+                                },
+                            )
+
+                            AccountTree(
+                                groups = grouped,
+                                displayName = { id -> uiState.providerOf(id)?.displayName ?: id },
+                                selected = importSelection,
+                                onSelectionChange = { importSelection = it },
                             )
                         }
-                        SwitchRow(
-                            title = "覆盖同名账号",
-                            summary = "关闭时，已存在的账号保持原样（跳过）",
-                            checked = overwrite,
-                            onCheckedChange = { overwrite = it },
-                        )
-
-                        // 主操作放在列表之前：账号多时不用滚到底才能找到导入按钮
-                        TextButton(
-                            text = "导入选中的 ${importSelection.size} 个账号",
-                            onClick = {
-                                if (importSelection.isEmpty()) {
-                                    importError = "没有选中任何账号"
-                                    return@TextButton
-                                }
-                                result = viewModel.importAccountsJson(importText, importSelection, overwrite)
-                                importError = ""
-                                viewModel.refresh()
-                            },
-                            enabled = importSelection.isNotEmpty(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-
-                        AccountTree(
-                            groups = grouped,
-                            displayName = { id -> uiState.providerOf(id)?.displayName ?: id },
-                            selected = importSelection,
-                            onSelectionChange = { importSelection = it },
-                        )
                     }
                 }
             }
 
-            result?.let { outcome ->
-                item {
-                    PreferenceCard {
-                        NavigationRow(
-                            title = "导入完成",
-                            summary = "新增 ${outcome.added.size} · 覆盖 ${outcome.updated.size} · " +
-                                "跳过 ${outcome.skipped.size} · 未知供应商 ${outcome.unknownProviders.size}",
-                            onClick = {},
-                        )
-                        if (outcome.skipped.isNotEmpty()) {
-                            Text(
-                                text = "跳过的账号：" + outcome.skipped.take(8).joinToString("、") +
-                                    if (outcome.skipped.size > 8) " 等 ${outcome.skipped.size} 个" else "",
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                modifier = Modifier.fillMaxWidth(),
+            item(key = "import-result") {
+                val outcome = result
+                AnimatedVisibility(
+                    visible = outcome != null,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    if (outcome != null) {
+                        PreferenceCard {
+                            NavigationRow(
+                                title = "导入完成",
+                                summary = "新增 ${outcome.added.size} · 覆盖 ${outcome.updated.size} · " +
+                                    "跳过 ${outcome.skipped.size} · 未知供应商 ${outcome.unknownProviders.size}",
+                                onClick = {},
                             )
-                        }
-                        if (outcome.unknownProviders.isNotEmpty()) {
-                            Text(
-                                text = "未知供应商：" + outcome.unknownProviders.distinct().joinToString("、"),
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.error,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            if (outcome.skipped.isNotEmpty()) {
+                                PreferenceHint(
+                                    "跳过的账号：" + outcome.skipped.take(8).joinToString("、") +
+                                        if (outcome.skipped.size > 8) " 等 ${outcome.skipped.size} 个" else "",
+                                )
+                            }
+                            if (outcome.unknownProviders.isNotEmpty()) {
+                                PreferenceHint(
+                                    "未知供应商：" + outcome.unknownProviders.distinct().joinToString("、"),
+                                    error = true,
+                                )
+                            }
                         }
                     }
                 }
@@ -449,7 +455,9 @@ private fun AccountTree(
         }
         Column(Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -479,7 +487,7 @@ private fun AccountTree(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 24.dp),
+                        .padding(start = 40.dp, end = 16.dp, top = 2.dp, bottom = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {

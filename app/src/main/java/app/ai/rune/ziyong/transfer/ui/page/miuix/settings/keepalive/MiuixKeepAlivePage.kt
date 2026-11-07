@@ -16,6 +16,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -132,7 +137,12 @@ fun MiuixKeepAlivePage(
                         "通知权限 + 电池优化白名单 + 未被限制后台 + 未开启流量节省，" +
                             "全部满足后锁屏也能稳定调用。",
                     )
-                    if (!uiState.running) {
+                    // 网关未启动时给出醒目标注：出现/消失带动画
+                    AnimatedVisibility(
+                        visible = !uiState.running,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                    ) {
                         PreferenceHint("网关未启动：先去首页启动，否则锁屏后没有进程监听端口。", error = true)
                     }
                 }
@@ -214,7 +224,12 @@ fun MiuixKeepAlivePage(
                         checked = uiState.overlayKeepAlive,
                         onCheckedChange = { viewModel.setOverlayKeepAlive(it) },
                     )
-                    if (status?.overlayGranted != true) {
+                    // 缺悬浮窗权限时才出现授权入口：出现/消失带动画
+                    AnimatedVisibility(
+                        visible = status?.overlayGranted != true,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                    ) {
                         PreferenceActionRow(
                             text = "授予悬浮窗权限",
                             onClick = {

@@ -44,7 +44,7 @@
 1. **文档同步铁律（每次修改都要更新文档）**：任何代码 / 资源 / 构建 / 配置改动，必须在本提交内同步更新对应文档（根 `README.md`、`docs/HANDOVER.md`、`docs/ARCHITECTURE.md`、`docs/NEXT_SESSION_CHECKLIST.md`、`AGENTS.md`、`CONTRIBUTING.md`）。禁止「只改代码不动文档」的提交。新增文件/页面/模块时，把新事实写进 ARCHITECTURE 的代码地图与 HANDOVER 的功能清单。
 2. **`:core` 纯 JVM**：禁止向 `:core` 添加任何 Android 依赖（它同时被 `:app`、`:cli`、单测消费）。只用 `HttpURLConnection` + gson + nanohttpd 这类纯 Java 库。
 3. **引擎单例**：`GatewayEngine` 只能有一个（`App.gateway` + `Context.gatewayEngine` 同源）。**不要新增第二个 ViewModel 去管网关状态**，也不要 new 第二个引擎（会争抢端口、账号状态漂移）。
-4. **UI 排版约定**：一律用 `ui/page/miuix/settings/common/PreferenceCard.kt` 的组件——`PreferenceCard` / `NavigationRow` / `SwitchRow` / `PreferenceHint` / `PreferenceButtonRow` / `PreferenceActionRow` / `PreferenceBlock`；不要直接往 miuix `Card` 塞裸 `Text`/`Row`（默认内边距为 0）。
+4. **UI 排版约定**：一律用 `ui/page/miuix/settings/common/PreferenceCard.kt` 的组件——`PreferenceCard` / `NavigationRow` / `SwitchRow` / `PreferenceHint` / `PreferenceButtonRow` / `PreferenceActionRow` / `PreferenceBlock`；不要直接往 miuix `Card` 塞裸 `Text`/`Row`（默认内边距为 0）。**条件项出现/收起必须用 `AnimatedVisibility(fadeIn+expandVertically / fadeOut+shrinkVertically)`，visible 绑定真实状态**（不要 `visible=true` 包 `if`，那没有退场动画）。
 5. **Compose 纪律**：`remember` 不能写在 `LazyListScope` 里；`stringResource` 只能在 `@Composable` 内调用；`MiuixIcons.Regular.X` 是扩展属性必须显式 import；数值型设置解析失败回落原值，不静默变 0。
 6. **字符串三包同步**：en / zh-rCN / zh-rTW 键集合必须一致；从默认语言删除键时必须同删全部分支，否则 lintVital 报 `ExtraTranslation` 致命错误。
 7. **提交**：Conventional Commits；主体 ≤72 字符；不加 AI 署名/Co-authored-by；成对更新 en + zh-rCN 文案。

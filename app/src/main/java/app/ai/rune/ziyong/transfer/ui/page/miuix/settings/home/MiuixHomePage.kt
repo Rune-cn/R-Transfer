@@ -7,11 +7,15 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -45,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.ai.rune.ziyong.transfer.gateway.AppUiState
 import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.gateway.formatCount
 import app.ai.rune.ziyong.transfer.gateway.formatTokens
@@ -209,10 +212,18 @@ fun MiuixHomePage(
                             if (on) startWithPermission() else viewModel.stopGateway()
                         },
                     )
-                    if (lastStartError.isNotEmpty()) {
+                    AnimatedVisibility(
+                        visible = lastStartError.isNotEmpty(),
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                    ) {
                         PreferenceHint("启动失败：$lastStartError", error = true)
                     }
-                    if (uiState.busy.isNotEmpty()) {
+                    AnimatedVisibility(
+                        visible = uiState.busy.isNotEmpty(),
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                    ) {
                         PreferenceHint(uiState.busy)
                     }
                     NavigationRow(
