@@ -71,6 +71,29 @@ fun PreferenceCard(
 }
 
 /**
+ * 可点击的分组卡片（如模型分组头、「点进去看详情」的列表项）。
+ *
+ * miuix 的 `Card` 只有传 `onClick` 才有按压反馈与水波纹，
+ * 所以这类卡片必须走 Card 的重载，不能包一层 `clickable`。
+ */
+@Composable
+fun PreferenceCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = CardHorizontalMargin)
+            .padding(bottom = CardBottomMargin),
+        colors = CardDefaults.defaultColors(MiuixTheme.colorScheme.surfaceContainer),
+        onClick = onClick,
+        content = content,
+    )
+}
+
+/**
  * 可跳转/可点击的设置行——等价于模板的 `MiuixNavigationItemWidget`。
  *
  * 用 `ArrowPreference`：右侧自带箭头，这是模板里所有「点进去」的行的一致外观。
