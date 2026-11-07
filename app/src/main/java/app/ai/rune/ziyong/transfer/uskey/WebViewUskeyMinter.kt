@@ -319,7 +319,7 @@ class WebViewUskeyMinter(
          * 未就绪/异步场景，结果不依赖本脚本的返回值——由 [READ_RESULT_SCRIPT]
          * 轮询读取全局，直到变为终态（ok=true 或 reason 非 pending）。
          */
-        private const val MINT_TRIGGER_SCRIPT = """
+        private val MINT_TRIGGER_SCRIPT = """
             (function(){
               window.__uskayMintResult = {ok:false,reason:'pending'};
               try {
