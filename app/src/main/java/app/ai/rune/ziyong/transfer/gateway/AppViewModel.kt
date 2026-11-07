@@ -69,6 +69,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import app.ai.rune.ziyong.transfer.gateway.service.FloatingKeepAlive
 import app.ai.rune.ziyong.transfer.gateway.service.LiveStatusNotifier
+import dev.aigw.core.util.PortProbe
 
 /** 验证码重发间隔（秒）：上游有频率限制，连点只会被拒。 */
 private const val SMS_RESEND_INTERVAL_MS = 60_000L
@@ -358,6 +359,9 @@ class AppViewModel(
     private val app: Application,
     private val engine: GatewayEngine,
 ) : ViewModel() {
+
+    /** 本次启动是否发生过端口回退；非空时会在启动成功后提示用户。 */
+    private var portFallbackNotice: String? = null
 
     private val appearance = AppearanceStore(engine.store())
     private val updateStore = UpdateStore(engine.store())
@@ -704,9 +708,23 @@ class AppViewModel(
             // engine.start() 幂等（server != null 直接返回），Service 里会再调一次兑底
             ContextCompat.startForegroundService(app, Intent(app, GatewayService::class.java))
             val error = withContext(Dispatchers.IO) {
+                // 先探测端口：EADDRINUSE 时原始异常只有一行 "bind failed"，用户无从判断，
+                // 这里提前发现并自动换一个可用端口，把「改用了哪个端口」如实告知。
+                val host = if (engine.settings().exposeLan) null else "127.0.0.1"
+                val wanted = engine.settings().port
+                if (!PortProbe.isAvailable(wanted, host)) {
+                    val fallback = PortProbe.findAvailable(wanted, host)
+                    if (fallback == null) {
+                        return@withContext "端口 $wanted 被占用，且附近 20 个端口也不可用；请到「接入设置」换一个端口"
+                    }
+                    engine.updateSettings(engine.settings().copy(port = fallback))
+                    portFallbackNotice = "端口 $wanted 被占用，已改用 $fallback"
+                }
                 runCatching { engine.start() }.exceptionOrNull()?.let { it.message ?: "启动失败" }
             }
             _state.value = _state.value.copy(busy = "")
+            val fallback = portFallbackNotice
+            portFallbackNotice = null
             if (error != null) {
                 // 引擎没起来就撤掉前台通知，避免「通知说运行中、端口没人听」
                 app.stopService(Intent(app, GatewayService::class.java))
@@ -717,6 +735,10 @@ class AppViewModel(
                 // 否则又回到「端口开着、无人看管」的孤儿态。onStartCommand 幂等。
                 ContextCompat.startForegroundService(app, Intent(app, GatewayService::class.java))
                 KeepAlivePrefs.setWantRunning(engine.store(), true)
+                if (fallback != null) {
+                    // 换端口必须让用户知道：客户端里填的地址也跟着变了
+                    _state.value = _state.value.copy(notice = fallback)
+                }
             }
             refresh()
             requestTileUpdate()
