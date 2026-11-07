@@ -8,7 +8,6 @@ import app.ai.rune.ziyong.transfer.gateway.GatewayHolder
 import app.ai.rune.ziyong.transfer.gateway.LanAddresses
 import dev.aigw.core.gateway.GatewayEngine
 import dev.aigw.core.store.KeyValueStore
-import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -33,10 +32,12 @@ val gatewayModule = module {
      * `Application`——两者在 Koin 的类型索引里不是同一个 key，
      * 注入会直接失败（页面整个渲染不出来，表现为「点了没反应」）。
      *
-     * 不需要额外 bind 出 `App` 类型：容器内没有按 `App` 注入的消费方，
-     * 需要 App 特有成员时（如 attachGateway）都直接走 `androidApplication()`。
+     * ⚠ 绝对不能用 `androidApplication()` 来定义它：
+     * Koin 的 `androidApplication()` 内部就是 `get<Application>()`，
+     * 用它定义 `single<Application>` 等于「解析自己」，会无限递归直到 StackOverflowError。
+     * 必须从 Context 直接取 applicationContext。
      */
-    single<Application> { androidApplication() }
+    single<Application> { androidContext().applicationContext as Application }
 
     /**
      * 凭证加密存储。
@@ -53,7 +54,7 @@ val gatewayModule = module {
      * 与容器里的 `GatewayEngine`（UI 走这条路）才是同一个实例。
      */
     single<GatewayHolder> {
-        val app = androidApplication() as App
+        val app = androidContext().applicationContext as App
         GatewayHolder(app, get<KeyValueStore>()).also { app.attachGateway(it) }
     }
 
