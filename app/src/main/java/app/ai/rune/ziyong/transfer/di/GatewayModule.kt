@@ -13,7 +13,6 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import android.app.Application
-import org.koin.core.module.dsl.bind
 
 /**
  * 网关内核的依赖装配。
@@ -34,9 +33,10 @@ val gatewayModule = module {
      * `Application`——两者在 Koin 的类型索引里不是同一个 key，
      * 注入会直接失败（页面整个渲染不出来，表现为「点了没反应」）。
      *
-     * 同时用 bind 让 `App` 也能被注入（需要 attachGateway 等成员时用）。
+     * 不需要额外 bind 出 `App` 类型：容器内没有按 `App` 注入的消费方，
+     * 需要 App 特有成员时（如 attachGateway）都直接走 `androidApplication()`。
      */
-    single<Application> { androidApplication() }.bind<App>()
+    single<Application> { androidApplication() }
 
     /**
      * 凭证加密存储。
