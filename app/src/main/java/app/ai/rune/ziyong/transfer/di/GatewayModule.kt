@@ -36,7 +36,7 @@ val gatewayModule = module {
      *
      * 同时用 bind 让 `App` 也能被注入（需要 attachGateway 等成员时用）。
      */
-    single<Application> { androidApplication() } bind App::class
+    single<Application> { androidApplication() }.bind<App>()
 
     /**
      * 凭证加密存储。
