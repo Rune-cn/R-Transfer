@@ -44,7 +44,7 @@ import app.ai.rune.ziyong.transfer.ui.navigation.LocalNavigator
 import app.ai.rune.ziyong.transfer.ui.navigation.MainPagerState
 import app.ai.rune.ziyong.transfer.ui.navigation.Route
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.home.MiuixHomePage
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.log.MiuixLogPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.log.MiuixCallLogPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.providers.MiuixProvidersPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.preferred.MiuixPreferredPage
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
@@ -376,7 +376,7 @@ private fun SettingsPagerContent(
                 outerPadding = outerPadding,
             )
 
-            2 -> MiuixLogPage(
+            2 -> MiuixCallLogPage(
                 enableBlur = useBlur,
                 title = navigationItems[page].label,
                 outerPadding = outerPadding,
