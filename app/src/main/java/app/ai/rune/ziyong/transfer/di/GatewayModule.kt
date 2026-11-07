@@ -12,7 +12,6 @@ import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
-import org.koin.core.module.dsl.onKoinStarted
 
 /**
  * 网关内核的依赖装配。
@@ -65,16 +64,4 @@ val gatewayModule = module {
     // AppViewModel 需要 Application（用于启动服务/装 APK）与已有的唯一引擎实例；
     // 两者都已在容器里，Koin 按构造参数自动注入
     viewModelOf(::AppViewModel)
-}
-
-/**
- * 容器启动后立刻构造 [GatewayHolder] 并回填给 App。
- *
- * 为什么不能只靠 `single { }` 的懒加载：`App.gateway` 是 lateinit，
- * 前台服务可能在「还没有任何 UI 请求过引擎」时就通过 `Context.gatewayEngine` 访问它，
- * 此时若 Holder 尚未创建就会抛 UninitializedPropertyAccessException。
- * 在 onKoinStarted 里主动 get 一次，把它提前实例化。
- */
-val gatewayStartupModule = module {
-    onKoinStarted { get<GatewayHolder>() }
 }

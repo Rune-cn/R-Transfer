@@ -18,6 +18,7 @@ import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import timber.log.Timber
+import org.koin.core.context.GlobalContext
 
 class App : Application() {
 
@@ -87,6 +88,11 @@ class App : Application() {
             // use modules
             modules(appModules)
         }
+
+        // Koin 是懒加载：若没有任何 UI 请求过引擎，前台服务先通过
+        // Context.gatewayEngine 访问时会撞上未初始化的 lateinit。
+        // 在容器启动后主动取一次，把 GatewayHolder 提前实例化。
+        GlobalContext.get().get<GatewayHolder>()
 
         // After Koin startup the file-logging tree is planted, so this entry
         // is captured both to logcat and to the on-disk run log.
