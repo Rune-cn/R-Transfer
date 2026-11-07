@@ -2,7 +2,7 @@
 
 > 面向下一任维护者 / AI 代理。读完这份文档，应当能在不看历史对话的前提下继续开发。
 >
-> 最后更新：2026-11-07
+> 最后更新：2026-11-07（文档与代码同步维护，改动代码必须同步更新本文，见 §5）
 
 ---
 
@@ -51,7 +51,7 @@ app/src/main/java/app/ai/rune/ziyong/transfer/
 ├── App.kt                       Application：Koin 启动、通知渠道、持有 GatewayHolder
 ├── gateway/                     ← 从上游搬来的网关逻辑，包名统一到 gateway 下
 │   ├── GatewayHolder.kt         引擎持有者 + Context.gatewayEngine 扩展
-│   ├── AppViewModel.kt          全部业务状态的唯一来源（1800 行，见 §4）
+│   ├── AppViewModel.kt          全部业务状态的唯一来源（1836 行，见 §4）
 │   ├── EncryptedKeyValueStore.kt  凭证加密存储（EncryptedSharedPreferences）
 │   ├── KeepAlive.kt             保活状态检测 + 系统设置 Intent
 │   ├── ApkInstaller.kt          应用内更新安装
@@ -75,7 +75,7 @@ app/src/main/java/app/ai/rune/ziyong/transfer/
 │   │   ├── credits/                  额度中心
 │   │   ├── security/                 安全防护
 │   │   ├── resilience/               并发与容错
-│   │   └── common/                   ★ 排版约定（SectionCard / CompactButton / findActivity）
+│   │   └── common/                   ★ 排版约定（PreferenceCard 体系 + findActivity，见 §5）
 │   ├── library/                      模板自带的毛玻璃、动效组件
 │   └── icons/                        图标集
 ├── di/                          Koin 模块（gatewayModule 是本项目新增的）
@@ -88,22 +88,30 @@ app/src/main/java/app/ai/rune/ziyong/transfer/
 
 所有页面都通过 `koinViewModel()` 拿到**同一个** `AppViewModel`（Koin 里声明为 `viewModelOf`）。
 
-- 状态：`val state: StateFlow<AppUiState>`，1800 行里包含 `AppUiState` 的全部字段定义
+- 状态：`val state: StateFlow<AppUiState>`，1836 行里包含 `AppUiState` 的全部字段定义
 - 页面只读 `uiState.xxx`，所有写操作走 `viewModel.xxx()` 方法
 - **不要新增第二个 ViewModel 去管网关状态**：引擎是单例，两套状态会各自漂移
 
 ### 引擎注入
 
 ```kotlin
-// di/GatewayModule.kt
-single { androidApplication() as App }        // Application 本身
+// di/GatewayModule.kt（真实代码）
+single<Application> { androidContext().applicationContext as Application }  // ⚠ 不能用 androidApplication()，会自引用递归
 single<KeyValueStore> { EncryptedKeyValueStore(androidContext()) }
-single<GatewayEngine> { GatewayEngine(...) }  // 唯一实例
-single<GatewayHolder> { (androidApplication() as App).gateway }
+single<GatewayHolder> {
+    val app = androidContext().applicationContext as App
+    GatewayHolder(app, get<KeyValueStore>()).also { app.attachGateway(it) }
+}
+single<GatewayEngine> { get<GatewayHolder>().engine }   // 与服务层同一个实例
 viewModelOf(::AppViewModel)
 ```
 
-`App.gateway` 用 `by lazy`：引擎构造要解密全部设置与账号，冷启动不该付这笔开销。
+`App.gateway` 是 `lateinit`，由 Koin 在 `onCreate` 里 `startKoin` 后立即通过 `attachGateway` 回填，
+随后 `GlobalContext.get().get<GatewayHolder>()` 主动提前实例化，保证前台服务先启动时引擎已就绪。
+
+> ⚠ 两个历史坑：`single<Application>` 必须显式声明为 `Application` 类型（否则 Koin 按 `App`
+> 建 key，注入到 `AppViewModel(Application)` 会失败）；且**不能用 `androidApplication()` 定义它**
+> （内部就是 `get<Application>()`，等于解析自己 → StackOverflowError，commit `3d0e54a`）。
 
 **服务层通过 `Context.gatewayEngine`（→ `App.gateway.engine`）取同一个实例**，
 保证 UI 与服务不会各持一套账号池。
@@ -118,29 +126,38 @@ viewModelOf(::AppViewModel)
 `BasicComponent` 自带 16dp，所以「Card 里只放 BasicComponent」没问题；
 但**直接往 Card 里塞 `Text` / `Row` 而不补 padding，文字就会贴边**。
 
-**正确做法：一律用 `common/SectionCard.kt` 里的 `SectionCard`**，它统一给：
-水平 16dp、垂直 8dp、行间距 10dp。内部可以混放 `BasicComponent` 与自定义内容。
+**正确做法：一律用 `common/PreferenceCard.kt` 里的 `PreferenceCard`**，它统一给：
+水平 12dp 外边距 + 12dp 下边距，与模板「关于」「个性化」两页完全一致。
+内部可以混放 `NavigationRow` / `SwitchRow` / `BasicComponent` 等**自带 padding** 的组件。
 
 ```kotlin
-SectionCard {
-    BasicComponent(title = "标题", summary = "说明")   // 自带 padding，无需补
-    CardHint("自定义说明文字")                          // 已被 SectionCard 补好边距
-    Row(...) { ... }
+PreferenceCard {
+    NavigationRow(title = "标题", summary = "说明", onClick = ...)  // = ArrowPreference，带右箭头
+    SwitchRow(title = "开关", summary = "说明", checked = ..., onCheckedChange = ...)
+    PreferenceHint("自定义说明文字")   // 卡片内解释性文字，统一次级色
 }
 ```
 
-### 5.2 并排按钮用 `CompactButton`
+> 之前踩过的坑：卡片不带 `padding(horizontal = 12.dp)`、可点击行手写 `BasicComponent` 加 onClick
+> （没有箭头，用户不知道可点）、开关行手写 `Row + Switch`（点按区域只剩开关本身）。
+> 这三类问题在 `cc6bc00` 起的模板体系重写中已全部收敛到上面的组件。
+
+### 5.2 并排按钮用 `PreferenceButtonRow` + 原生 `TextButton`
 
 `TextButton` 自带 16dp 水平内边距 + `minWidth = 58dp`。两个各占 `weight(1f)` 时，
 内边距会吃掉大半宽度，看起来「太挤」。
 
 ```kotlin
-ButtonRow {
-    CompactButton(text = "取消", onClick = ...)
-    CompactButton(text = "保存", primary = true, onClick = ...)
-    CompactButton(text = "删除", danger = true, onClick = ...)
+PreferenceButtonRow {
+    TextButton(text = "取消", onClick = ...)
+    TextButton(text = "保存", onClick = ...)
+    TextButton(text = "删除", onClick = ...)
 }
 ```
+
+整行主操作（保存 / 添加账号）用 `PreferenceActionRow(text, onClick)`；
+自定义内容块用 `PreferenceBlock`。**不要改 `insideMargin` / `minWidth` 等样式参数**，
+那会让高度与圆角偏离其余按钮。
 
 ### 5.3 `remember` 不能写在 `LazyListScope` 里
 
@@ -207,7 +224,8 @@ ButtonRow {
 |---|---|
 | AGP | 9.4.1 |
 | Kotlin | 2.4.21 |
-| Gradle | 9.9.0 |
+| Gradle | 9.8.1（wrapper） |
+| JDK | 25（toolchain；CI 用 21 运行 Gradle） |
 | Compose BOM | 2026.09.00 |
 | miuix | 0.9.4（Maven Central 稳定版） |
 | compileSdk / targetSdk / minSdk | 37 / 37 / 26 |
@@ -297,14 +315,15 @@ PATCH /repos/{repo}/git/refs/heads/main  {"sha": commit.sha}
 
 推之前逐项确认（这些都是踩过的）：
 
-- [ ] 新页面用 `SectionCard`，没有直接往 `Card` 塞裸 `Text`/`Row`
-- [ ] 并排按钮用 `ButtonRow` + `CompactButton`
+- [x] 新页面用 `PreferenceCard`，没有直接往 `Card` 塞裸 `Text`/`Row`
+- [ ] 并排按钮用 `PreferenceButtonRow` + 原生 `TextButton`；整行主操作用 `PreferenceActionRow`
 - [ ] `remember` 不在 `LazyListScope` / 非 Composable lambda 里
 - [ ] `MiuixIcons.Regular.X` 有对应 import
 - [ ] 没有 `app.ai.rune...` 的全限定写法（会与 `AppViewModel` 的 `app` 参数冲突）
 - [ ] 新增二级页后，`BackHandler` 覆盖了它的返回路径
 - [ ] 数值型设置在解析失败时回落原值，而不是静默变 0
 - [ ] 改动后确认 CI 通过（本地不构建）
+- [ ] **同步更新了全部相关文档**（`AGENTS.md`、根 `README.md`、`docs/HANDOVER.md`、`docs/ARCHITECTURE.md`、`docs/NEXT_SESSION_CHECKLIST.md`、`CONTRIBUTING.md`）——铁律，见 AGENTS.md 铁律 #1
 
 ---
 
@@ -313,7 +332,7 @@ PATCH /repos/{repo}/git/refs/heads/main  {"sha": commit.sha}
 | 取舍 | 原因 |
 |---|---|
 | `:core` 保持纯 JVM | 三个消费者共用，且要能跑单测 |
-| 引擎单例 + `App.gateway` lazy | 两套引擎会争抢端口、账号状态漂移 |
+| 引擎单例 + `App.gateway` lateinit（Koin 启动即回填并提前实例化） | 两套引擎会争抢端口、账号状态漂移；服务先启动时引擎必须已就绪 |
 | 单账号并发默认 1 | 上游按账号限流并发流，多条会被挂住只回空 chunk |
 | 额度 `limit == 0` 显示「剩余 N」而非 0% | 把"不知道"画成 0% 会误导用户以为额度用尽 |
 | 模型专属配额单独标注 | 否则「某模型用完」会被误判为「账号耗尽」 |
