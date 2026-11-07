@@ -54,7 +54,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 
 /**
  * 保活与权限：让网关在锁屏后仍能被客户端连上。
@@ -133,7 +133,7 @@ fun MiuixKeepAlivePage(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                SectionCard() {
+                PreferenceCard() {
                     BasicComponent(
                         title = if (status?.allGood == true) "后台条件已就绪" else "还有条件未满足",
                         summary = "通知权限 + 电池优化白名单 + 未被限制后台 + 未开启流量节省，" +
@@ -150,7 +150,7 @@ fun MiuixKeepAlivePage(
 
             item { SmallTitle("系统条件") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     PermissionRow(
                         title = "通知权限",
                         detail = if (status?.notificationsGranted == true) {
@@ -211,7 +211,7 @@ fun MiuixKeepAlivePage(
 
             item { SmallTitle("保活方式") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     BasicComponent(
                         title = "开机自动恢复",
                         summary = if (uiState.startOnBoot) {
@@ -248,7 +248,7 @@ fun MiuixKeepAlivePage(
 
             item { SmallTitle("厂商后台管理") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     Text(
                         text = "国产系统默认会限制第三方应用后台。下面的入口会尝试打开厂商的后台管理页；" +
                             "打不开就按下方说明手动设置。",

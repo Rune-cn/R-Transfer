@@ -57,9 +57,8 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.ui.text.style.TextOverflow
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.ClickableSectionCard
 
 /**
  * 额度中心：按供应商查看各账号的额度包明细。
@@ -137,7 +136,7 @@ fun MiuixCreditsPage(
         ) {
             if (providersWithAccounts.isEmpty()) {
                 item {
-                    SectionCard() {
+                    PreferenceCard() {
                         BasicComponent(
                             title = "还没有账号",
                             summary = "先去「供应商」页添加账号，额度会显示在这里。",
@@ -150,7 +149,7 @@ fun MiuixCreditsPage(
 
             item { SmallTitle("额度概览") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     val known = uiState.accounts.filter { it.creditsKnown }
                     BasicComponent(
                         title = "额度合计",
@@ -173,7 +172,7 @@ fun MiuixCreditsPage(
                 item(key = info.id) {
                     val accounts = uiState.accountsOf(info.id)
                     val known = accounts.filter { it.creditsKnown }
-                    ClickableSectionCard(onClick = { openProviderId = info.id }) {
+                    PreferenceCard(onClick = { openProviderId = info.id }) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -298,7 +297,7 @@ private fun MiuixProviderCreditsPage(
         ) {
             if (accounts.isEmpty()) {
                 item {
-                    SectionCard() {
+                    PreferenceCard() {
                         BasicComponent(
                             title = "还没有账号",
                             summary = "先去该供应商页添加账号。",
@@ -315,7 +314,7 @@ private fun MiuixProviderCreditsPage(
                 val packs = state.creditPacks["$providerId/${account.uid}"].orEmpty()
                 val bills = state.pointsBills["$providerId/${account.uid}"]
 
-                SectionCard() {
+                PreferenceCard() {
                     BasicComponent(
                         title = account.nickname.ifEmpty { account.uid },
                         summary = buildString {

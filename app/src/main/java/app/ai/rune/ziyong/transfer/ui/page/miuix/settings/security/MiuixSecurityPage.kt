@@ -54,7 +54,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 
 /**
  * 安全防护：反审核脱敏 + 账号级限速。
@@ -123,7 +123,7 @@ fun MiuixSecurityPage(
         ) {
             item { SmallTitle("反审核脱敏") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -164,7 +164,7 @@ fun MiuixSecurityPage(
 
             item { SmallTitle("账号级限速") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     Text(
                         text = "同一账号连续请求会被串成固定节拍，容易形成可识别特征。" +
                             "加间隔与抖动可打散节奏，代价是首字变慢——不需要规避风控时保持 0。",
@@ -290,7 +290,7 @@ private fun EvidenceDialog(
                 ) {
                     items(evidences.size, key = { evidences[it].seq }) { index ->
                         val item = evidences[index]
-                        SectionCard() {
+                        PreferenceCard() {
                             Text(
                                 text = "${timeFormat.format(Date(item.atMillis))} · ${item.model}",
                                 style = MiuixTheme.textStyles.footnote1,

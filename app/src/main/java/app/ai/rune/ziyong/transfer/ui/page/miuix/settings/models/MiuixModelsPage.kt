@@ -51,8 +51,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import androidx.compose.ui.state.ToggleableState
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.ClickableSectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.foundation.layout.padding
 
 /**
@@ -124,7 +123,7 @@ fun MiuixModelsPage(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                SectionCard() {
+                PreferenceCard() {
                     BasicComponent(
                         title = "模型名怎么填",
                         summary = "客户端里填「供应商前缀/模型 id」，例如 trae/solo-1.0；下方每条都给出了完整写法",
@@ -144,7 +143,7 @@ fun MiuixModelsPage(
 
             if (uiState.modelsError.isNotEmpty()) {
                 item {
-                    SectionCard() {
+                    PreferenceCard() {
                         BasicComponent(
                             title = "拉取失败",
                             summary = uiState.modelsError,
@@ -156,7 +155,7 @@ fun MiuixModelsPage(
             if (uiState.models.isEmpty()) {
                 item { SmallTitle("模型") }
                 item {
-                    SectionCard() {
+                    PreferenceCard() {
                         BasicComponent(
                             title = if (uiState.modelsLoading) "正在拉取模型目录…" else "还没有模型",
                             summary = if (uiState.modelsLoading) {
@@ -222,7 +221,7 @@ private fun GroupHeader(
     collapsed: Boolean,
     onToggle: () -> Unit,
 ) {
-    ClickableSectionCard(onClick = onToggle) {
+    PreferenceCard(onClick = onToggle) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -259,7 +258,7 @@ private fun ModelRow(
     exposed: Boolean,
     onToggleExposed: (Boolean) -> Unit,
 ) {
-    SectionCard {
+    PreferenceCard {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

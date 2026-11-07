@@ -51,7 +51,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 
 /**
  * 接入设置：客户端要用的地址、端口与 API Key。
@@ -123,7 +123,7 @@ fun MiuixEndpointsPage(
         ) {
             item { SmallTitle("客户端填这些") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     val localUrl = uiState.localUrl.ifEmpty { "http://127.0.0.1:${uiState.port}/v1" }
                     BasicComponent(
                         title = "接口地址（本机）",
@@ -157,7 +157,7 @@ fun MiuixEndpointsPage(
 
             item { SmallTitle("端口与网络") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = port,
@@ -188,7 +188,7 @@ fun MiuixEndpointsPage(
 
             item { SmallTitle("鉴权") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = apiKey,
@@ -215,7 +215,7 @@ fun MiuixEndpointsPage(
             }
 
             item {
-                SectionCard() {
+                PreferenceCard() {
                     TextButton(
                         text = "保存",
                         onClick = {

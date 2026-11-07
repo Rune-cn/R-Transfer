@@ -48,7 +48,7 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.basic.Switch
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 
 /**
  * 自定义供应商的新建 / 编辑。
@@ -125,7 +125,7 @@ fun MiuixCustomProviderPage(
         ) {
             item { SmallTitle("基本信息") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = name,
@@ -187,7 +187,7 @@ fun MiuixCustomProviderPage(
 
             item { SmallTitle("怎么填") }
             item {
-                SectionCard() {
+                PreferenceCard() {
                     BasicComponent(
                         title = "接口地址",
                         summary = "多数中转站填到 /v1 即可，例如 https://api.example.com/v1；" +
