@@ -3,21 +3,19 @@ package app.ai.rune.ziyong.transfer.ui.navigation
 
 import android.os.Build
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.RoomPreferences
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.vectorResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ai.rune.ziyong.transfer.R
 import app.ai.rune.ziyong.transfer.domain.settings.model.preferences.ThemeState
-import app.ai.rune.ziyong.transfer.ui.icons.AppIcons
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.icon.extended.Layers
+import top.yukonga.miuix.kmp.icon.extended.Notes
+import top.yukonga.miuix.kmp.icon.extended.Settings
 import app.ai.rune.ziyong.transfer.ui.library.FloatingBottomBarMode
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.SettingsSharedViewModel
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.SettingsCompactLayout
@@ -43,30 +41,31 @@ fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedVie
         else -> FloatingBottomBarMode.None
     }
 
-    val configCount = 0 // Shell: example tabs carry no installer config count.
+    val configCount = 0 // 网关页面暂不需要角标
     val homeLabel = stringResource(R.string.home)
-    val homeIcon = ImageVector.vectorResource(R.drawable.ic_tool)
     val configLabel = "供应商"
     val logLabel = stringResource(R.string.run_logs)
     val preferredLabel = stringResource(R.string.preferred)
 
+    // 图标统一取 miuix 官方图标集：与 NavigationBar 的选中态缩放、视觉重量同源；
+    // 混用 Material Icons 会让选中图标看起来忽粗忽细。
     val navigationItems = remember(homeLabel, configLabel, logLabel, preferredLabel) {
         listOf(
             NavigationItem(
                 label = homeLabel,
-                icon = homeIcon,
+                icon = MiuixIcons.Regular.Home,
             ),
             NavigationItem(
                 label = configLabel,
-                icon = Icons.Rounded.Storage,
+                icon = MiuixIcons.Regular.Layers,
             ),
             NavigationItem(
                 label = logLabel,
-                icon = AppIcons.Terminal,
+                icon = MiuixIcons.Regular.Notes,
             ),
             NavigationItem(
                 label = preferredLabel,
-                icon = Icons.Rounded.Settings,
+                icon = MiuixIcons.Regular.Settings,
             ),
         )
     }

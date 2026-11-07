@@ -37,6 +37,7 @@ import app.ai.rune.ziyong.transfer.ui.navigation.Route
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.PreferredViewEvent
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.preferred.PreferredViewModel
 import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixBlockingLoadingDialog
+import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.ui.page.miuix.widgets.MiuixNavigationItemWidget
 import app.ai.rune.ziyong.transfer.ui.theme.SystemBarAppearance
 import app.ai.rune.ziyong.transfer.ui.theme.applyWindowAppearance
@@ -69,11 +70,14 @@ fun MiuixPreferredPage(
     title: String,
     outerPadding: PaddingValues,
     snackbarHostState: SnackbarHostState,
+    // 网关状态：本页负责展示「我的」里的运行时入口
+    gatewayViewModel: AppViewModel = koinViewModel(),
 ) {
     val navigator = LocalNavigator.current
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val uiState by viewModel.state.collectAsStateWithLifecycle()
+    val gateway by gatewayViewModel.state.collectAsStateWithLifecycle()
 
     val revLevel = when (AppConfig.LEVEL) {
         Level.STABLE -> stringResource(id = R.string.stable)
@@ -142,6 +146,40 @@ fun MiuixPreferredPage(
             overscrollEffect = null,
         ) {
             item { Spacer(modifier = Modifier.size(12.dp)) }
+            item { SmallTitle("网关") }
+            item {
+                Card(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .padding(bottom = 12.dp),
+                ) {
+                    BasicComponent(
+                        title = "运行状态",
+                        summary = if (gateway.running) {
+                            "运行中 · 监听 :${gateway.port}"
+                        } else {
+                            "已停止 · 端口未监听"
+                        },
+                    )
+                    BasicComponent(
+                        title = "接入地址",
+                        summary = gateway.localUrl.ifEmpty { "http://127.0.0.1:${gateway.port}/v1" },
+                    )
+                    BasicComponent(
+                        title = "账号池",
+                        summary = "${gateway.pool.total} 个账号 · 可用 ${gateway.pool.usable} 个",
+                    )
+                    BasicComponent(
+                        title = "聚合模型",
+                        summary = when {
+                            gateway.modelsError.isNotEmpty() -> "拉取失败：${gateway.modelsError}"
+                            gateway.models.isEmpty() -> "尚未拉取"
+                            else -> "共 ${gateway.models.size} 个"
+                        },
+                    )
+                }
+            }
+
             item { SmallTitle(stringResource(R.string.personalization)) }
             item {
                 Card(

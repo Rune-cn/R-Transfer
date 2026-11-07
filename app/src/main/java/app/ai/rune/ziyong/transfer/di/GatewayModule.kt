@@ -24,6 +24,14 @@ import org.koin.dsl.module
  */
 val gatewayModule = module {
 
+    /**
+     * 把 Application 本身登记进容器。
+     *
+     * Koin 的 androidContext() 提供的是 Context，而 AppViewModel 需要 Application
+     * （用于 startService / 安装 APK）。显式绑定可以避免各处再写 `as Application` 强转。
+     */
+    single { androidApplication() as App }
+
     /** 凭证加密存储。 */
     single<KeyValueStore> { EncryptedKeyValueStore(androidContext()) }
 
