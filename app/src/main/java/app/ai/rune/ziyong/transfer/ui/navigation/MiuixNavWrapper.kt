@@ -13,9 +13,9 @@ import app.ai.rune.ziyong.transfer.R
 import app.ai.rune.ziyong.transfer.domain.settings.model.preferences.ThemeState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Home
-import top.yukonga.miuix.kmp.icon.extended.Layers
-import top.yukonga.miuix.kmp.icon.extended.Notes
-import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.icon.extended.NotesFill
+import top.yukonga.miuix.kmp.icon.extended.Store
+import top.yukonga.miuix.kmp.icon.extended.Tune
 import app.ai.rune.ziyong.transfer.ui.library.FloatingBottomBarMode
 import app.ai.rune.ziyong.transfer.ui.page.main.settings.SettingsSharedViewModel
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.SettingsCompactLayout
@@ -49,6 +49,12 @@ fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedVie
 
     // 图标统一取 miuix 官方图标集：与 NavigationBar 的选中态缩放、视觉重量同源；
     // 混用 Material Icons 会让选中图标看起来忽粗忽细。
+    //
+    // 逐项选择依据（按「用户去这一页想干什么」挑，而不是按字面）：
+    //   首页   Home      —— 回到总览
+    //   供应商 Store     —— 账号来源是「商店/货架」语义，比 Layers（图层）更贴近
+    //   日志   NotesFill —— 实心稿在大底栏更压得住；Notes 留给「文档」语义
+    //   设置   Tune      —— 调节旋钮，与「偏好设置」一致；Settings 齿轮留给深层的系统设置
     val navigationItems = remember(homeLabel, configLabel, logLabel, preferredLabel) {
         listOf(
             NavigationItem(
@@ -57,15 +63,15 @@ fun MiuixMainPageWrapper(uiState: ThemeState, sharedViewModel: SettingsSharedVie
             ),
             NavigationItem(
                 label = configLabel,
-                icon = MiuixIcons.Regular.Layers,
+                icon = MiuixIcons.Regular.Store,
             ),
             NavigationItem(
                 label = logLabel,
-                icon = MiuixIcons.Regular.Notes,
+                icon = MiuixIcons.Regular.NotesFill,
             ),
             NavigationItem(
                 label = preferredLabel,
-                icon = MiuixIcons.Regular.Settings,
+                icon = MiuixIcons.Regular.Tune,
             ),
         )
     }
