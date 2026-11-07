@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -56,6 +60,23 @@ fun MiuixProvidersPage(
     outerPadding: PaddingValues,
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
+
+    // 二级页状态放在本 Tab 内部：进入详情后返回仍在「供应商」页，
+    // 而不是回到首页——这是用户对「点进去再退出来」的默认预期。
+    var openProviderId by remember { mutableStateOf<String?>(null) }
+
+    BackHandler(enabled = openProviderId != null) { openProviderId = null }
+
+    openProviderId?.let { id ->
+        MiuixProviderDetailPage(
+            providerId = id,
+            viewModel = viewModel,
+            onBack = { openProviderId = null },
+            outerPadding = outerPadding,
+        )
+        return
+    }
+
     val scrollBehavior = MiuixScrollBehavior()
     val layoutDirection = LocalLayoutDirection.current
     val backdrop = rememberMiuixBlurBackdrop(enableBlur)
@@ -107,7 +128,8 @@ fun MiuixProvidersPage(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         BasicComponent(
                             title = "账号",
-                            summary = "${provider.accountCount} 个 · 可用 ${provider.usableCount} 个",
+                            summary = "${provider.accountCount} 个 · 可用 ${provider.usableCount} 个 · 点此管理",
+                            onClick = { openProviderId = provider.id },
                         )
                         if (accounts.isEmpty()) {
                             BasicComponent(
