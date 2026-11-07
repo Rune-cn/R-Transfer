@@ -62,6 +62,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.endpoints.MiuixEndpointsPage
+import androidx.activity.compose.BackHandler
 
 @Composable
 fun MiuixPreferredPage(
@@ -78,6 +80,18 @@ fun MiuixPreferredPage(
     val uriHandler = LocalUriHandler.current
     val uiState by viewModel.state.collectAsStateWithLifecycle()
     val gateway by gatewayViewModel.state.collectAsStateWithLifecycle()
+
+    // 设置页内部的二级页：进入后返回仍停在本 Tab
+    var openEndpoints by remember { mutableStateOf(false) }
+    BackHandler(enabled = openEndpoints) { openEndpoints = false }
+    if (openEndpoints) {
+        MiuixEndpointsPage(
+            viewModel = gatewayViewModel,
+            onBack = { openEndpoints = false },
+            outerPadding = outerPadding,
+        )
+        return
+    }
 
     val revLevel = when (AppConfig.LEVEL) {
         Level.STABLE -> stringResource(id = R.string.stable)
@@ -176,6 +190,11 @@ fun MiuixPreferredPage(
                             gateway.models.isEmpty() -> "尚未拉取"
                             else -> "共 ${gateway.models.size} 个"
                         },
+                    )
+                    BasicComponent(
+                        title = "接入设置",
+                        summary = "端口、API Key 与客户端要填的地址",
+                        onClick = { openEndpoints = true },
                     )
                 }
             }
