@@ -12,6 +12,7 @@ import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
+import org.koin.core.module.dsl.createdAtStart
 
 /**
  * 网关内核的依赖装配。
@@ -32,29 +33,34 @@ val gatewayModule = module {
      */
     single { androidApplication() as App }
 
-    /** 凭证加密存储。 */
+    /**
+     * 凭证加密存储。
+     *
+     * 必须由这里创建并传给引擎：`GatewayEngine` 的构造参数就要一个 KeyValueStore，
+     * 反向「从引擎取 store」会形成循环依赖。
+     */
     single<KeyValueStore> { EncryptedKeyValueStore(androidContext()) }
 
-    /** 网关引擎：唯一实例，延迟到首次注入时构造。 */
-    single<GatewayEngine> {
-        GatewayEngine(
-            store = get<KeyValueStore>(),
-            lanAddressProvider = { LanAddresses.current(androidContext()) },
-            // 调用记录预载与过期清理走后台，冷启动首帧不等全量解密
-            preloadCallLogs = false,
-            // 完整原文溢出到缓存目录（系统空间不足时可回收）
-            spillDir = java.io.File(androidContext().cacheDir, "call-fulltext"),
-        )
-    }
+    /**
+     * Application 侧的持有者（唯一引擎的真正归属地）。
+     *
+     * 由容器构造并回填给 App：这样 `Context.gatewayEngine`（服务/磁贴走这条路）
+     * 与容器里的 `GatewayEngine`（UI 走这条路）才是同一个实例。
+     */
+    single<GatewayHolder> {
+        val app = androidApplication() as App
+        GatewayHolder(app, get<KeyValueStore>()).also { app.attachGateway(it) }
+    } createdAtStart
 
     /**
-     * Application 侧的持有者。
+     * 网关引擎：**必须与前台服务拿到的是同一个实例**。
      *
-     * 前台服务（GatewayService 等）是通过 Context 拿引擎的，走的是
-     * `Context.gatewayEngine` → `App.gateway` 这条路径；这里把它注册进容器，
-     * 让 UI 侧与服务侧拿到的是**同一个**实例，避免出现两套账号池。
+     * 这里不能自己 new 一个 GatewayEngine：
+     * 前台服务通过 `Context.gatewayEngine` → `App.gateway.engine` 取引擎并让它监听端口，
+     * 若容器里再新建一个，UI 检查的是 A 引擎、服务启动的是 B 引擎，
+     * 结果就是「点了开关没反应」——UI 永远看到 isRunning=false。
      */
-    single<GatewayHolder> { (androidApplication() as App).gateway }
+    single<GatewayEngine> { get<GatewayHolder>().engine }
 
     // AppViewModel 需要 Application（用于启动服务/装 APK）与已有的唯一引擎实例；
     // 两者都已在容器里，Koin 按构造参数自动注入

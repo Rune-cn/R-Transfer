@@ -24,10 +24,19 @@ class App : Application() {
     /**
      * 网关引擎的持有者。
      *
-     * 用 by lazy 延迟构造：引擎会读取加密存储（要解密全部 settings 与账号），
-     * 冷启动阶段立刻构造会把首帧拖慢；只有真正进入网关界面或服务启动时才初始化。
+     * 由 Koin 在启动时注入（见 GatewayModule），确保 UI、前台服务、磁贴
+     * 拿到的是同一个引擎——两套引擎会争抢端口并让账号状态各自漂移。
+     *
+     * lateinit 而不是 lazy：Koin 在 `onCreate` 里 startKoin 后立即赋值，
+     * 任何真正使用引擎的时机（UI 交互 / 服务启动）都晚于它。
      */
-    val gateway: GatewayHolder by lazy { GatewayHolder(this) }
+    lateinit var gateway: GatewayHolder
+        private set
+
+    /** 供 Koin 在容器构造阶段回填。 */
+    internal fun attachGateway(holder: GatewayHolder) {
+        gateway = holder
+    }
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase))

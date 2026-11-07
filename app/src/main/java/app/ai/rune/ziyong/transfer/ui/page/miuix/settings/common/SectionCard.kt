@@ -18,56 +18,90 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 设置类页面的排版约定。
+ * 设置类页面的排版约定——**与 miuix-example 模板保持一致**。
  *
- * 为什么需要这一层：miuix 的 `Card` 默认内边距是 **0**，它假设子项自己带 padding
- * （`BasicComponent` 就自带 16dp）。直接往 Card 里塞 `Text` 或 `Row` 而不补 padding，
- * 文字会贴着卡片边缘，看起来「错位」——这是本工程多个新页面出现过的同一问题。
+ * 模板的卡片节奏是：
+ * ```
+ * SmallTitle("分组名")
+ * Card(modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+ *     BasicComponent(...)   // 自带 16dp 内边距
+ * }
+ * ```
  *
- * 这里把「卡片内水平边距」与「卡片内垂直节奏」收敛成常量，
- * 新页面只要走 [SectionCard] 就不会再犯。
+ * 本文件把这个节奏收敛成 [SectionCard] 等几个入口，避免各页面各写一套
+ * 导致观感不统一。**新页面请一律走这里，不要直接手写 Card。**
+ *
+ * 为什么 `Card` 不能直接塞裸 `Text`：miuix 的 `CardDefaults.InsideMargin` 是 0，
+ * 它假设子项自带 padding（`BasicComponent` 有 16dp）。裸文本会贴边。
+ * [SectionCard] 已为自定义内容补好水平边距。
  */
 
-/** 卡片内容的水平内边距：与 BasicComponent 自带的 16dp 对齐。 */
-val CardHorizontalPadding = 16.dp
+/** 卡片外水平边距：与模板一致（12dp）。 */
+val PageHorizontalPadding = 12.dp
 
-/** 卡片内容的垂直内边距：比水平略小，让行与行之间更紧凑。 */
-val CardVerticalPadding = 8.dp
-
-/** 卡片内相邻区块的间距。 */
-val CardBlockSpacing = 10.dp
+/** 卡片之间的垂直间距：与模板一致（12dp）。 */
+val CardGap = 12.dp
 
 /**
- * 统一的设置卡片：负责水平/垂直内边距与行间距。
+ * 模板风格的分组卡片。
  *
- * 内部可以混放 `BasicComponent`（自带 padding，无需再补）与自定义内容
- * （`Text`、`Row` 等，本卡片已补好水平边距）。
+ * 内部可以混放：
+ * - `BasicComponent`（自带 16dp，无需再补）
+ * - 自定义内容（`Text` / `Row` / `TextField` 等，本卡片已补好水平边距）
+ *
+ * 注意：**水平边距由页面的 `LazyColumn.contentPadding` 提供**（各页已统一 12dp），
+ * 这里只负责卡片之间的垂直间距，否则会叠加成 24dp。
+ *
+ * @param gap 与下方卡片的间距。
  */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
+    gap: androidx.compose.ui.unit.Dp = CardGap,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = gap),
         insideMargin = PaddingValues(0.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = CardHorizontalPadding, vertical = CardVerticalPadding),
-            verticalArrangement = Arrangement.spacedBy(CardBlockSpacing),
+                // 水平 16dp 对齐 BasicComponent；垂直方向留给各子项自己控制，
+                // 否则「BasicComponent + 自定义内容」混排时会出现双重间距。
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
             content = content,
         )
     }
 }
 
 /**
+ * 卡片内的自定义内容块：负责垂直呼吸，避免与 `BasicComponent` 的行高打架。
+ *
+ * 用法：`SectionCard { BasicComponent(...); CardBlock { Text(...) } }`
+ */
+@Composable
+fun CardBlock(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
+}
+
+/**
  * 卡片内的并排按钮行。
  *
- * 为什么不直接用 `Row + weight(1f) + TextButton`：`TextButton` 自带
- * 16dp 水平内边距，两个各占一半宽度时，留给文字的空间会被内边距吃掉大半，
- * 看起来「太挤」。这里统一压小按钮内边距并留出间隔。
+ * `TextButton` 自带 16dp 水平内边距 + 58dp 最小宽度，两个各占一半会互相挤压；
+ * 这里统一压小内边距并留出间隔。
  */
 @Composable
 fun ButtonRow(
@@ -75,7 +109,9 @@ fun ButtonRow(
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )
@@ -84,7 +120,8 @@ fun ButtonRow(
 /**
  * 并排用的紧凑按钮：宽度均分、内边距收窄。
  *
- * @param primary 主操作用强调色底（保存/确认），次操作用中性样式（取消）。
+ * @param primary 主操作（保存/确认）用强调色底
+ * @param danger 破坏性操作（删除）用错误色文字
  */
 @Composable
 fun RowScope.CompactButton(
@@ -99,7 +136,6 @@ fun RowScope.CompactButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.weight(1f),
-        // 默认 minWidth 58dp 会让两个按钮并排时互相挤压，这里放开由 weight 决定
         minWidth = 0.dp,
         insideMargin = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
         colors = when {
@@ -114,7 +150,7 @@ fun RowScope.CompactButton(
     )
 }
 
-/** 卡片内的小节标题（相当于分组标题，但不另开卡片）。 */
+/** 卡片内的小节标题。 */
 @Composable
 fun CardSectionTitle(text: String) {
     Text(

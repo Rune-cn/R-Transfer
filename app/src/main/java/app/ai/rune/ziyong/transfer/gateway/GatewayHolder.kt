@@ -14,12 +14,22 @@ import java.io.File
  * 且必须随进程生命周期存在一次即可。放在 Application 里既拿到了 Context，
  * 也避免静态持有 Context 造成泄漏。
  */
-class GatewayHolder(private val app: Application) {
+class GatewayHolder(
+    private val app: Application,
+    /**
+     * 由 Koin 容器传入的同一份加密存储。
+     *
+     * 不在这里自己 new：容器里也注册了 KeyValueStore，
+     * 两处各建一个会持有两份密钥与 SharedPreferences 实例，
+     * 写入时序不共享，容易出现「刚存的值另一侧读不到」。
+     */
+    private val store: KeyValueStore,
+) {
 
     /** 整个进程共享一个引擎；首次访问时构造。 */
     val engine: GatewayEngine by lazy {
         GatewayEngine(
-            store = EncryptedKeyValueStore(app),
+            store = store,
             lanAddressProvider = { LanAddresses.current(app) },
             // 调用记录预载与过期清理走后台，冷启动首帧不再等全量解密
             preloadCallLogs = false,

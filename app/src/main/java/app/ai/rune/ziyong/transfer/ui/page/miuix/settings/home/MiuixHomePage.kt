@@ -74,6 +74,8 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.basic.Switch
 import androidx.core.app.ActivityCompat
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.findActivity
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
+import top.yukonga.miuix.kmp.basic.SmallTitle
 
 /**
  * 首页：网关控制台。
@@ -186,22 +188,19 @@ fun MiuixHomePage(
                     port = uiState.port,
                     usable = uiState.pool.usable,
                     total = uiState.pool.total,
+                    modifier = Modifier.padding(bottom = 12.dp),
                 )
             }
 
-            // 总开关：放在状态卡片正下方，是进入本应用后第一个能操作的东西。
-            // 用整行大开关而不是按钮，是为了让「开/关」的状态和动作合成一个控件——
-            // 按钮只能表达动作，用户还得回头看卡片才知道当前是否运行。
+            // 总开关：紧跟状态卡，是进入本应用后第一个能操作的东西。
+            // 用整行大开关而不是按钮——按钮只能表达动作，用户点完还得回头看卡片；
+            // 开关把「当前状态」与「开关动作」合成一个控件。
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                ) {
+                SectionCard(gap = 0.dp) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
@@ -235,26 +234,9 @@ fun MiuixHomePage(
                 }
             }
 
+            item { SmallTitle("接入信息") }
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                ) {
-                    BasicComponent(
-                        title = "刷新全部额度",
-                        summary = "向各上游重新拉取账号额度",
-                        onClick = { viewModel.refreshAllCredits() },
-                    )
-                }
-            }
-
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                ) {
+                SectionCard {
                     val localUrl = uiState.localUrl.ifEmpty { "http://127.0.0.1:${uiState.port}/v1" }
                     BasicComponent(
                         title = "本机接入地址",
@@ -265,19 +247,27 @@ fun MiuixHomePage(
                     BasicComponent(
                         title = "局域网接入地址",
                         summary = lanUrl ?: "未连接 Wi-Fi（局域网不可用）",
-                        // 没有局域网地址时不响应点击：点一个「不可用」的条目没有任何意义
+                        // 没有局域网地址时不响应点击：点一个「不可用」的条目没有意义
                         onClick = lanUrl?.let { url -> { copy(url) } },
                     )
                 }
             }
 
+            item { SmallTitle("今日用量") }
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                ) {
+                SectionCard {
                     TelemetryRows(uiState)
+                }
+            }
+
+            item { SmallTitle("快捷操作") }
+            item {
+                SectionCard {
+                    BasicComponent(
+                        title = "刷新全部额度",
+                        summary = "向各上游重新拉取账号额度",
+                        onClick = { viewModel.refreshAllCredits() },
+                    )
                 }
             }
 
@@ -325,6 +315,7 @@ private fun MiuixStatusCard(
     port: Int,
     usable: Int,
     total: Int,
+    modifier: Modifier = Modifier,
 ) {
     val containerColor = if (running) {
         when {
@@ -346,7 +337,7 @@ private fun MiuixStatusCard(
         if (isDynamicColor) MiuixTheme.colorScheme.onErrorContainer else MiuixTheme.colorScheme.onSurface
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.defaultColors(color = containerColor),

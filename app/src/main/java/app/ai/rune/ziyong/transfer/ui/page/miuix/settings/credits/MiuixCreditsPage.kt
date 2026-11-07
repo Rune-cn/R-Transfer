@@ -148,6 +148,7 @@ fun MiuixCreditsPage(
                 return@LazyColumn
             }
 
+            item { SmallTitle("额度概览") }
             item {
                 SectionCard() {
                     val known = uiState.accounts.filter { it.creditsKnown }
@@ -167,6 +168,7 @@ fun MiuixCreditsPage(
                 }
             }
 
+            item { SmallTitle("按供应商查看") }
             for (info in providersWithAccounts) {
                 item(key = info.id) {
                     val accounts = uiState.accountsOf(info.id)
@@ -308,6 +310,7 @@ private fun MiuixProviderCreditsPage(
                 return@LazyColumn
             }
 
+            item { SmallTitle("账号额度") }
             items(accounts.size, key = { accounts[it].uid }) { index ->
                 val account = accounts[index]
                 val packs = state.creditPacks["$providerId/${account.uid}"].orEmpty()
