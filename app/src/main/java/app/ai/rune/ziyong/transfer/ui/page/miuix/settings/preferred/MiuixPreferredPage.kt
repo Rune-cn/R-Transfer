@@ -67,6 +67,7 @@ import androidx.activity.compose.BackHandler
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.keepalive.MiuixKeepAlivePage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer.MiuixAccountTransferPage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits.MiuixCreditsPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.security.MiuixSecurityPage
 
 @Composable
 fun MiuixPreferredPage(
@@ -89,8 +90,10 @@ fun MiuixPreferredPage(
     var openKeepAlive by remember { mutableStateOf(false) }
     var openTransfer by remember { mutableStateOf(false) }
     var openCredits by remember { mutableStateOf(false) }
-    BackHandler(enabled = openEndpoints || openKeepAlive || openTransfer || openCredits) {
+    var openSecurity by remember { mutableStateOf(false) }
+    BackHandler(enabled = openEndpoints || openKeepAlive || openTransfer || openCredits || openSecurity) {
         when {
+            openSecurity -> openSecurity = false
             openCredits -> openCredits = false
             openTransfer -> openTransfer = false
             openKeepAlive -> openKeepAlive = false
@@ -125,6 +128,14 @@ fun MiuixPreferredPage(
         MiuixCreditsPage(
             viewModel = gatewayViewModel,
             onBack = { openCredits = false },
+            outerPadding = outerPadding,
+        )
+        return
+    }
+    if (openSecurity) {
+        MiuixSecurityPage(
+            viewModel = gatewayViewModel,
+            onBack = { openSecurity = false },
             outerPadding = outerPadding,
         )
         return
@@ -241,6 +252,21 @@ fun MiuixPreferredPage(
                             "有待处理项：锁屏后可能连不上"
                         },
                         onClick = { openKeepAlive = true },
+                    )
+                    BasicComponent(
+                        title = "安全防护",
+                        summary = buildString {
+                            append(if (gateway.security.sanitizeEnabled) "脱敏开启" else "脱敏关闭")
+                            append(" · ")
+                            append(
+                                if (gateway.security.minIntervalMillis > 0) {
+                                    "限速 ${gateway.security.minIntervalMillis}ms"
+                                } else {
+                                    "不限速"
+                                },
+                            )
+                        },
+                        onClick = { openSecurity = true },
                     )
                     BasicComponent(
                         title = "额度中心",
