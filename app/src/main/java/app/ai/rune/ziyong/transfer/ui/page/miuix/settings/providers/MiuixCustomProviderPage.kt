@@ -46,6 +46,8 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.foundation.layout.size
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SwitchRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
 
 /**
  * 自定义供应商的新建 / 编辑。
