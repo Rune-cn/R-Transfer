@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -94,7 +95,7 @@ fun MiuixCreditsPage(
 
     // 二级页目标（null = 总额度列表）；打开单个供应商明细时向右推入，返回反向滑出
     var target by remember { mutableStateOf<CreditsTarget?>(null) }
-    androidx.activity.compose.BackHandler(enabled = target != null) { target = null }
+    BackHandler(enabled = target != null) { target = null }
 
     AnimatedContent(
         targetState = target,
@@ -134,6 +135,7 @@ fun MiuixCreditsPage(
                 onBack = onBack,
                 outerPadding = outerPadding,
                 uiState = uiState,
+                viewModel = viewModel,
                 onOpenProvider = { target = CreditsTarget.ProviderDetail(it) },
             )
         }
@@ -146,6 +148,7 @@ private fun CreditsListContent(
     onBack: () -> Unit,
     outerPadding: PaddingValues,
     uiState: AppUiState,
+    viewModel: AppViewModel,
     onOpenProvider: (String) -> Unit,
 ) {
     val scrollBehavior = MiuixScrollBehavior()
