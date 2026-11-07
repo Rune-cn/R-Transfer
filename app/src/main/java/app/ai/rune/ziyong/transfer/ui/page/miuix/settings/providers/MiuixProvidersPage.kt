@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.providers
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,30 +21,30 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.ai.rune.ziyong.transfer.gateway.AppViewModel
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
 import app.ai.rune.ziyong.transfer.ui.theme.getMiuixAppBarColor
 import app.ai.rune.ziyong.transfer.ui.theme.miuixBlurEffect
 import app.ai.rune.ziyong.transfer.ui.theme.rememberMiuixBlurBackdrop
 import org.koin.androidx.compose.koinViewModel
-import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Add
-import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SectionCard
 
 /**
- * 供应商页：按供应商分组列出账号与可用状态。
+ * 供应商列表：每个供应商一张卡片，点进去管理账号。
  *
- * 只做「看得见的状态」，不做登录与账号管理——那些是需要多步交互的深流程，
- * 放进这里会把主列表挤成操作台。列表点击留给后续的供应商详情页。
+ * 排版对齐模板「个性化」页：`SmallTitle` + `PreferenceCard { ArrowPreference }`。
  */
 @Composable
 fun MiuixProvidersPage(
@@ -54,13 +54,15 @@ fun MiuixProvidersPage(
     outerPadding: PaddingValues,
 ) {
     val uiState by viewModel.state.collectAsStateWithLifecycle()
+    val scrollBehavior = MiuixScrollBehavior()
+    val layoutDirection = LocalLayoutDirection.current
+    val backdrop = rememberMiuixBlurBackdrop(enableBlur)
 
-    // 二级页状态放在本 Tab 内部：进入详情后返回仍在「供应商」页，
-    // 而不是回到首页——这是用户对「点进去再退出来」的默认预期。
+    // 二级页状态收在本 Tab 内部：返回仍停在「供应商」页
     var openProviderId by remember { mutableStateOf<String?>(null) }
     // 新建/编辑自定义供应商：null=未打开；""=新建；其它=编辑该 key
     var editingCustomKey by remember { mutableStateOf<String?>(null) }
-    // 记录「从详情页点进来编辑」的上一个页面，返回时要回到它，而不是直接落到列表
+    // 从详情进入编辑时记住来源，返回要回到详情
     var returnToDetail by remember { mutableStateOf<String?>(null) }
 
     BackHandler(enabled = openProviderId != null || editingCustomKey != null) {
@@ -83,7 +85,6 @@ fun MiuixProvidersPage(
                 returnToDetail = null
             },
             onSaved = { providerId ->
-                // 保存后直接进入该供应商，省去用户再找一遍
                 editingCustomKey = null
                 returnToDetail = null
                 openProviderId = providerId
@@ -100,7 +101,6 @@ fun MiuixProvidersPage(
             onBack = { openProviderId = null },
             outerPadding = outerPadding,
             onEditCustom = { key ->
-                // 记住当前详情页，编辑返回时回到这里
                 returnToDetail = id
                 openProviderId = null
                 editingCustomKey = key
@@ -108,10 +108,6 @@ fun MiuixProvidersPage(
         )
         return
     }
-
-    val scrollBehavior = MiuixScrollBehavior()
-    val layoutDirection = LocalLayoutDirection.current
-    val backdrop = rememberMiuixBlurBackdrop(enableBlur)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -141,59 +137,33 @@ fun MiuixProvidersPage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item { Spacer(modifier = Modifier.size(12.dp)) }
+
             if (uiState.providers.isEmpty()) {
+                item { SmallTitle("供应商") }
                 item {
-                    SectionCard() {
-                        BasicComponent(
-                            title = "还没有供应商",
-                            summary = "内置供应商会在引擎启动时自动登记，稍等片刻或重启应用。",
-                        )
+                    PreferenceCard {
+                        PreferenceHint("还没有供应商。内置供应商会在引擎启动时自动登记。")
                     }
                 }
-            }
-
-            for (provider in uiState.providers) {
-                val accounts = uiState.accountsOf(provider.id)
-                item {
-                    SmallTitle(provider.displayName)
-                }
-                item {
-                    SectionCard() {
-                        BasicComponent(
-                            title = "账号",
-                            summary = "${provider.accountCount} 个 · 可用 ${provider.usableCount} 个 · 点此管理",
-                            onClick = { openProviderId = provider.id },
-                        )
-                        if (accounts.isEmpty()) {
-                            BasicComponent(
-                                title = "尚未添加账号",
-                                summary = "该供应商暂无可用于调用的账号",
+            } else {
+                for (provider in uiState.providers) {
+                    val accounts = uiState.accountsOf(provider.id)
+                    item(key = "title-${provider.id}") { SmallTitle(provider.displayName) }
+                    item(key = "card-${provider.id}") {
+                        PreferenceCard {
+                            NavigationRow(
+                                title = "账号",
+                                summary = "${provider.accountCount} 个 · 可用 ${provider.usableCount} 个",
+                                onClick = { openProviderId = provider.id },
                             )
-                        } else {
-                            for (account in accounts) {
-                                BasicComponent(
-                                    title = account.nickname.ifEmpty { account.uid },
-                                    summary = buildString {
-                                        append(if (account.usable) "可用" else "不可用")
-                                        if (account.creditsKnown) {
-                                            append(" · 额度 ")
-                                            append(account.credits)
-                                        }
-                                        if (account.detail.isNotEmpty()) {
-                                            append(" · ")
-                                            append(account.detail)
-                                        }
-                                    },
-                                )
-                            }
                         }
                     }
                 }
