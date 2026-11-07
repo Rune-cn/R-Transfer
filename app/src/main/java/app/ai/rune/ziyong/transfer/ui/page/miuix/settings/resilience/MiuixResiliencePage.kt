@@ -53,6 +53,11 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
 import androidx.compose.foundation.layout.size
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.NavigationRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceHint
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.SwitchRow
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceBlock
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceButtonRow
 
 /**
  * 并发与容错：四组参数，分别对应上游异常时的四种处理方式。
@@ -116,32 +121,37 @@ fun MiuixResiliencePage(
             overscrollEffect = null,
         ) {
             item { Spacer(modifier = Modifier.size(12.dp)) }
+
+            // 每组参数收敛为一行：当前值进 summary，点进去编辑。
+            // 这既是模板的「设置项 + 当前值 + 点进去改」模式，也避免了
+            // 自定义「左标题右数值」行型（模板没有这种行，样式会漂移）。
             item { SmallTitle("并发闸门") }
             item {
                 PreferenceCard {
-                    ParamRow(
-                        "单账号在途上限",
-                        if (failover.concurrency.maxPerAccount == 0) {
-                            "不限"
-                        } else {
-                            "${failover.concurrency.maxPerAccount} 条"
+                    NavigationRow(
+                        title = "并发闸门",
+                        summary = buildString {
+                            append(
+                                if (failover.concurrency.maxPerAccount == 0) {
+                                    "单账号不限"
+                                } else {
+                                    "单账号 ${failover.concurrency.maxPerAccount} 条"
+                                },
+                            )
+                            append(" · ")
+                            append(
+                                if (failover.concurrency.maxGlobal == 0) {
+                                    "全局不限"
+                                } else {
+                                    "全局 ${failover.concurrency.maxGlobal} 条"
+                                },
+                            )
+                            append(" · 排队超时 ${failover.concurrency.queueTimeoutMs} 毫秒")
                         },
-                    )
-                    ParamRow(
-                        "全局在途上限",
-                        if (failover.concurrency.maxGlobal == 0) "不限" else "${failover.concurrency.maxGlobal} 条",
-                    )
-                    ParamRow("排队超时", "${failover.concurrency.queueTimeoutMs} 毫秒")
-                    Text(
-                        text = "单账号默认 1：上游按账号限流并发流，同时打多条会除首条外被挂住，客户端超时。",
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    TextButton(
-                        text = "修改并发参数",
                         onClick = { editTarget = EditTarget.Concurrency },
-                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    PreferenceHint(
+                        "单账号默认 1：上游按账号限流并发流，同时打多条会除首条外被挂住，客户端超时。",
                     )
                 }
             }
@@ -149,39 +159,22 @@ fun MiuixResiliencePage(
             item { SmallTitle("失败转移") }
             item {
                 PreferenceCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                text = "启用失败转移",
-                                style = MiuixTheme.textStyles.subtitle,
-                                color = MiuixTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = "关闭后单请求只在本供应商内换号：不退避重试、也不切到其它供应商",
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            )
-                        }
-                        Switch(
-                            checked = failover.enabled,
-                            onCheckedChange = {
-                                viewModel.updateFailoverSettings(failover.copy(enabled = it))
-                            },
-                        )
-                    }
-                    ParamRow("最大尝试次数", "${failover.retry.maxAttempts} 次（含首次）")
-                    ParamRow("初始退避", "${failover.retry.initialBackoffMs} 毫秒")
-                    ParamRow("退避上限", "${failover.retry.maxBackoffMs} 毫秒")
-                    ParamRow("退避倍率", "×${failover.retry.backoffMultiplier}")
-                    ParamRow("随机抖动", "±${(failover.retry.jitterRatio * 100).toInt()}%")
-                    TextButton(
-                        text = "修改重试参数",
+                    SwitchRow(
+                        title = "启用失败转移",
+                        summary = "关闭后单请求只在本供应商内换号：不退避重试、也不切到其它供应商",
+                        checked = failover.enabled,
+                        onCheckedChange = {
+                            viewModel.updateFailoverSettings(failover.copy(enabled = it))
+                        },
+                    )
+                    NavigationRow(
+                        title = "重试退避",
+                        summary = "最多 ${failover.retry.maxAttempts} 次（含首次） · " +
+                            "初始 ${failover.retry.initialBackoffMs} 毫秒 · " +
+                            "上限 ${failover.retry.maxBackoffMs} 毫秒 · " +
+                            "倍率 ×${failover.retry.backoffMultiplier} · " +
+                            "抖动 ±${(failover.retry.jitterRatio * 100).toInt()}%",
                         onClick = { editTarget = EditTarget.Retry },
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -189,43 +182,40 @@ fun MiuixResiliencePage(
             item { SmallTitle("熔断器（按供应商）") }
             item {
                 PreferenceCard {
-                    ParamRow("连续失败阈值", "${failover.circuitBreaker.failureThreshold} 次")
-                    ParamRow("熔断静默时长", "${failover.circuitBreaker.openDurationMs / 1000} 秒")
-                    ParamRow("半开恢复成功数", "${failover.circuitBreaker.halfOpenSuccessCount} 次")
-                    TextButton(
-                        text = "修改熔断参数",
+                    NavigationRow(
+                        title = "熔断器",
+                        summary = "连续失败 ${failover.circuitBreaker.failureThreshold} 次触发 · " +
+                            "静默 ${failover.circuitBreaker.openDurationMs / 1000} 秒 · " +
+                            "半开恢复需 ${failover.circuitBreaker.halfOpenSuccessCount} 次成功",
                         onClick = { editTarget = EditTarget.CircuitBreaker },
-                        modifier = Modifier.fillMaxWidth(),
                     )
+                    PreferenceHint("客户端 400 类错误不计入失败；熔断只统计上游侧错误。")
                 }
             }
 
             item { SmallTitle("模型级冷却") }
             item {
                 PreferenceCard {
-                    ParamRow("冷却时长", "${failover.modelCooldown.cooldownMs / 1000} 秒")
-                    ParamRow("冷却上限", "${failover.modelCooldown.maxCooldownMs / 1000} 秒")
-                    Text(
-                        text = "上游报「该模型已超限」时只冷却该模型：不换账号、不计熔断，冷却期内直接跳过。",
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    TextButton(
-                        text = "修改模型级冷却",
+                    NavigationRow(
+                        title = "模型级冷却",
+                        summary = "冷却 ${failover.modelCooldown.cooldownMs / 1000} 秒 · " +
+                            "上限 ${failover.modelCooldown.maxCooldownMs / 1000} 秒",
                         onClick = { editTarget = EditTarget.ModelCooldown },
-                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    PreferenceHint(
+                        "上游报「该模型已超限」时只冷却该模型：不换账号、不计熔断，冷却期内直接跳过。",
                     )
                 }
             }
 
+            item { SmallTitle("说明") }
             item {
-                Text(
-                    text = "全部参数保存后立即生效，无需重启网关。并发「在途」指已向上游发起、尚未返回的请求；" +
-                        "排队超时后该次尝试会换下一个账号或供应商。",
-                    style = MiuixTheme.textStyles.footnote2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
+                PreferenceCard {
+                    PreferenceHint(
+                        "全部参数保存后立即生效，无需重启网关。并发「在途」指已向上游发起、" +
+                            "尚未返回的请求；排队超时后该次尝试会换下一个账号或供应商。",
+                    )
+                }
             }
 
             item { Spacer(modifier = Modifier.navigationBarsPadding()) }
@@ -275,26 +265,6 @@ fun MiuixResiliencePage(
 
 private enum class EditTarget { Concurrency, Retry, CircuitBreaker, ModelCooldown }
 
-/** 参数展示行：左标题右值。 */
-@Composable
-private fun ParamRow(title: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = title,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = value,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.primary,
-        )
-    }
-}
 
 // ============================== 编辑弹窗 ==============================
 
@@ -459,16 +429,12 @@ private fun EditDialog(
         onDismissRequest = onDismiss,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            fields()
-            Text(
-                text = hint,
-                style = MiuixTheme.textStyles.footnote2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            // 字段区用 PreferenceCard 包裹：弹窗内的输入框边距与页面一致
+            PreferenceCard {
+                PreferenceBlock { fields() }
+                PreferenceHint(hint)
+            }
+            PreferenceButtonRow {
                 TextButton(
                     text = "取消",
                     onClick = onDismiss,
