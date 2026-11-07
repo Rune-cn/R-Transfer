@@ -1,0 +1,517 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.ai.rune.ziyong.transfer.gateway.AppViewModel
+import app.ai.rune.ziyong.transfer.gateway.AppUiState
+import app.ai.rune.ziyong.transfer.ui.theme.getMiuixAppBarColor
+import app.ai.rune.ziyong.transfer.ui.theme.miuixBlurEffect
+import app.ai.rune.ziyong.transfer.ui.theme.rememberMiuixBlurBackdrop
+import dev.aigw.core.provider.PointsBill
+import dev.aigw.core.provider.ProviderCapability
+import dev.aigw.core.provider.QuotaPack
+import java.text.DateFormat
+import java.util.Date
+import org.koin.androidx.compose.koinViewModel
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TopAppBar
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+
+/**
+ * 额度中心：按供应商查看各账号的额度包明细。
+ *
+ * 两层结构：
+ * - 第一层列出有账号的供应商，附可用账号占比条（纯数字看不出「这个供应商健不健康」）；
+ * - 第二层按账号平铺额度包，并区分「全账号共享」与「仅某模型可用」的配额。
+ *
+ * 最后一点很关键：模型专属配额（如某个模型的周额度）用完时，
+ * 若不加区分就会被误当成「整个账号已耗尽」，从而白换账号。
+ */
+@Composable
+fun MiuixCreditsPage(
+    viewModel: AppViewModel = koinViewModel(),
+    onBack: () -> Unit,
+    outerPadding: PaddingValues,
+) {
+    val uiState by viewModel.state.collectAsStateWithLifecycle()
+    var openProviderId by remember { mutableStateOf<String?>(null) }
+
+    if (openProviderId != null) {
+        MiuixProviderCreditsPage(
+            providerId = openProviderId!!,
+            state = uiState,
+            viewModel = viewModel,
+            onBack = { openProviderId = null },
+            outerPadding = outerPadding,
+        )
+        return
+    }
+
+    val scrollBehavior = MiuixScrollBehavior()
+    val layoutDirection = LocalLayoutDirection.current
+    val backdrop = rememberMiuixBlurBackdrop(false)
+
+    val providersWithAccounts = remember(uiState.providers, uiState.accounts) {
+        uiState.providers.filter { uiState.accountsOf(it.id).isNotEmpty() }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                modifier = Modifier.miuixBlurEffect(backdrop),
+                color = backdrop.getMiuixAppBarColor(),
+                title = "额度中心",
+                subtitle = "按供应商查看额度包",
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = MiuixIcons.Regular.Back,
+                            contentDescription = "返回",
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(backdrop?.let { Modifier.layerBackdrop(it) } ?: Modifier)
+                .scrollEndHaptic()
+                .overScrollVertical()
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+            contentPadding = PaddingValues(
+                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                bottom = outerPadding.calculateBottomPadding(),
+            ),
+            overscrollEffect = null,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (providersWithAccounts.isEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        BasicComponent(
+                            title = "还没有账号",
+                            summary = "先去「供应商」页添加账号，额度会显示在这里。",
+                        )
+                    }
+                }
+                item { Spacer(modifier = Modifier.navigationBarsPadding()) }
+                return@LazyColumn
+            }
+
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    val known = uiState.accounts.filter { it.creditsKnown }
+                    BasicComponent(
+                        title = "额度合计",
+                        summary = if (known.isEmpty()) {
+                            "尚未同步额度"
+                        } else {
+                            "${known.sumOf { it.credits }}（已同步 ${known.size} 个账号）"
+                        },
+                    )
+                    BasicComponent(
+                        title = "刷新全部",
+                        summary = "向所有上游重新拉取额度，可能需要几十秒",
+                        onClick = { viewModel.refreshAllCredits() },
+                    )
+                }
+            }
+
+            for (info in providersWithAccounts) {
+                item(key = info.id) {
+                    val accounts = uiState.accountsOf(info.id)
+                    val known = accounts.filter { it.creditsKnown }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { openProviderId = info.id },
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = info.displayName,
+                                    style = MiuixTheme.textStyles.subtitle,
+                                    color = MiuixTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = "${accounts.size} 个账号 · 额度合计 " +
+                                        if (known.isEmpty()) "—" else known.sumOf { it.credits }.toString(),
+                                    style = MiuixTheme.textStyles.footnote2,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                )
+                                // 可用账号占比：一眼看出这个供应商是否健康
+                                val fraction = accounts.count { it.usable }.toFloat() / accounts.size
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(5.dp)
+                                        .clip(CircleShape)
+                                        .background(MiuixTheme.colorScheme.surfaceContainerHighest),
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                                            .height(5.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (accounts.any { !it.usable }) {
+                                                    MiuixTheme.colorScheme.error
+                                                } else {
+                                                    MiuixTheme.colorScheme.primary
+                                                },
+                                            ),
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "查看",
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.navigationBarsPadding()) }
+        }
+    }
+}
+
+/**
+ * 某个供应商各账号的额度明细。
+ *
+ * 进页面拉一次（账号集合变化时重拉）；对「有账本」的供应商（如小浣熊）
+ * 额外拉积分流水——这类供应商没有额度包概念，额度就是积分余额，
+ * 只列额度包会让它看起来「没有明细」。
+ */
+@Composable
+private fun MiuixProviderCreditsPage(
+    providerId: String,
+    state: AppUiState,
+    viewModel: AppViewModel,
+    onBack: () -> Unit,
+    outerPadding: PaddingValues,
+) {
+    val accounts = state.accountsOf(providerId)
+    val provider = state.providerOf(providerId)
+    val hasLedger = provider?.capabilities?.contains(ProviderCapability.POINTS_BILLS) == true
+    val scrollBehavior = MiuixScrollBehavior()
+    val layoutDirection = LocalLayoutDirection.current
+    val backdrop = rememberMiuixBlurBackdrop(false)
+
+    LaunchedEffect(providerId, accounts.map { it.uid }) {
+        accounts.forEach {
+            viewModel.loadCreditPacks(providerId, it.uid)
+            if (hasLedger) viewModel.loadPointsBills(providerId, it.uid)
+        }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                modifier = Modifier.miuixBlurEffect(backdrop),
+                color = backdrop.getMiuixAppBarColor(),
+                title = provider?.displayName ?: providerId,
+                subtitle = "额度包明细",
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = MiuixIcons.Regular.Back,
+                            contentDescription = "返回",
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(backdrop?.let { Modifier.layerBackdrop(it) } ?: Modifier)
+                .scrollEndHaptic()
+                .overScrollVertical()
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+            contentPadding = PaddingValues(
+                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                bottom = outerPadding.calculateBottomPadding(),
+            ),
+            overscrollEffect = null,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (accounts.isEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        BasicComponent(
+                            title = "还没有账号",
+                            summary = "先去该供应商页添加账号。",
+                        )
+                    }
+                }
+                item { Spacer(modifier = Modifier.navigationBarsPadding()) }
+                return@LazyColumn
+            }
+
+            items(accounts.size, key = { accounts[it].uid }) { index ->
+                val account = accounts[index]
+                val packs = state.creditPacks["$providerId/${account.uid}"].orEmpty()
+                val bills = state.pointsBills["$providerId/${account.uid}"]
+
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    BasicComponent(
+                        title = account.nickname.ifEmpty { account.uid },
+                        summary = buildString {
+                            append("余额 ")
+                            append(if (account.creditsKnown) account.credits.toString() else "—")
+                            append(" · ")
+                            append(if (account.disabled) "凭证失效" else if (!account.enabled) "已停用" else "可用")
+                        },
+                    )
+
+                    if (packs.isEmpty()) {
+                        Text(
+                            text = when {
+                                // 账本型供应商没有额度包，额度就是积分余额
+                                hasLedger -> "该供应商没有额度包，积分流水见下"
+                                !account.creditsKnown && account.detail.isNotEmpty() -> account.detail
+                                else -> "没有额度包明细"
+                            },
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    } else {
+                        for (pack in packs) {
+                            QuotaPackRow(pack)
+                        }
+                    }
+
+                    if (hasLedger) {
+                        Text(
+                            text = "积分明细",
+                            style = MiuixTheme.textStyles.subtitle,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        when {
+                            bills == null -> Hint("正在加载积分明细…")
+                            bills.error.isNotEmpty() -> Hint("加载失败：${bills.error}", error = true)
+                            bills.bills.isEmpty() -> Hint("暂无积分明细")
+                            else -> for (bill in bills.bills) PointsBillRow(bill)
+                        }
+                    }
+
+                    TextButton(
+                        text = "刷新",
+                        onClick = {
+                            viewModel.refreshCredits(providerId, account.uid)
+                            viewModel.loadCreditPacks(providerId, account.uid)
+                            if (hasLedger) viewModel.loadPointsBills(providerId, account.uid)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                    )
+                }
+            }
+
+            item { Spacer(modifier = Modifier.navigationBarsPadding()) }
+        }
+    }
+}
+
+/** 单个额度包：名称（分组）+ 作用范围 + 进度条 + 剩余/总量 + 过期时间。 */
+@Composable
+private fun QuotaPackRow(pack: QuotaPack) {
+    // limit 为 0 表示上游没给总量：此时「占比」无从谈起，按未知处理而不是画成 0%
+    val fraction = if (pack.limit > 0) {
+        (pack.remain.toFloat() / pack.limit).coerceIn(0f, 1f)
+    } else {
+        null
+    }
+    val barColor = when {
+        fraction == null -> MiuixTheme.colorScheme.primary
+        fraction > 0.5f -> MiuixTheme.colorScheme.primary
+        fraction > 0.2f -> MiuixTheme.colorScheme.error.copy(alpha = 0.6f)
+        else -> MiuixTheme.colorScheme.error
+    }
+    val expireText = remember(pack.expireAt) {
+        if (pack.expireAt > 0) {
+            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                .format(Date(pack.expireAt * 1000))
+        } else {
+            ""
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = if (pack.group.isEmpty()) pack.name else "${pack.name}（${pack.group}）",
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurface,
+                )
+                // 模型专属配额：不标出来会被误当成账号总额度
+                if (pack.scope.isNotEmpty()) {
+                    Text(
+                        text = pack.scope,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.primary,
+                    )
+                }
+            }
+            if (expireText.isNotEmpty()) {
+                Text(
+                    text = expireText,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(5.dp)
+                    .clip(CircleShape)
+                    .background(MiuixTheme.colorScheme.surfaceContainerHighest),
+            ) {
+                if (fraction != null && fraction > 0f) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(fraction)
+                            .height(5.dp)
+                            .clip(CircleShape)
+                            .background(barColor),
+                    )
+                }
+            }
+            Text(
+                text = if (fraction != null) {
+                    "${(fraction * 100).toInt()}% (${pack.remain}/${pack.limit})"
+                } else {
+                    "剩余 ${pack.remain}"
+                },
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+        }
+    }
+}
+
+/** 一笔积分流水。 */
+@Composable
+private fun PointsBillRow(bill: PointsBill) {
+    val time = remember(bill.createdAtMillis) {
+        if (bill.createdAtMillis > 0) {
+            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                .format(Date(bill.createdAtMillis))
+        } else {
+            ""
+        }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = bill.title,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            if (time.isNotEmpty()) {
+                Text(
+                    text = time,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+        }
+        Text(
+            text = if (bill.points > 0) "+${bill.points}" else bill.points.toString(),
+            style = MiuixTheme.textStyles.footnote1,
+            color = when {
+                bill.points > 0 -> MiuixTheme.colorScheme.primary
+                bill.points < 0 -> MiuixTheme.colorScheme.error
+                else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+            },
+        )
+    }
+}
+
+@Composable
+private fun Hint(text: String, error: Boolean = false) {
+    Text(
+        text = text,
+        style = MiuixTheme.textStyles.footnote2,
+        color = if (error) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        modifier = Modifier.padding(vertical = 4.dp),
+    )
+}

@@ -66,6 +66,7 @@ import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.endpoints.MiuixEndpoin
 import androidx.activity.compose.BackHandler
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.keepalive.MiuixKeepAlivePage
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.transfer.MiuixAccountTransferPage
+import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.credits.MiuixCreditsPage
 
 @Composable
 fun MiuixPreferredPage(
@@ -87,8 +88,10 @@ fun MiuixPreferredPage(
     var openEndpoints by remember { mutableStateOf(false) }
     var openKeepAlive by remember { mutableStateOf(false) }
     var openTransfer by remember { mutableStateOf(false) }
-    BackHandler(enabled = openEndpoints || openKeepAlive || openTransfer) {
+    var openCredits by remember { mutableStateOf(false) }
+    BackHandler(enabled = openEndpoints || openKeepAlive || openTransfer || openCredits) {
         when {
+            openCredits -> openCredits = false
             openTransfer -> openTransfer = false
             openKeepAlive -> openKeepAlive = false
             else -> openEndpoints = false
@@ -114,6 +117,14 @@ fun MiuixPreferredPage(
         MiuixAccountTransferPage(
             viewModel = gatewayViewModel,
             onBack = { openTransfer = false },
+            outerPadding = outerPadding,
+        )
+        return
+    }
+    if (openCredits) {
+        MiuixCreditsPage(
+            viewModel = gatewayViewModel,
+            onBack = { openCredits = false },
             outerPadding = outerPadding,
         )
         return
@@ -230,6 +241,15 @@ fun MiuixPreferredPage(
                             "有待处理项：锁屏后可能连不上"
                         },
                         onClick = { openKeepAlive = true },
+                    )
+                    BasicComponent(
+                        title = "额度中心",
+                        summary = if (gateway.pool.creditsKnown > 0) {
+                            "已知额度 ${gateway.pool.totalCredits} · 按供应商查看明细"
+                        } else {
+                            "按供应商查看额度包明细"
+                        },
+                        onClick = { openCredits = true },
                     )
                     BasicComponent(
                         title = "账号导入导出",
