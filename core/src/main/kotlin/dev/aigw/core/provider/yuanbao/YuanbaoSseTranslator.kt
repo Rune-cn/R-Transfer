@@ -28,6 +28,7 @@ class YuanbaoSseTranslator(
     private var finished = false
 
     fun translate(line: String): List<String> {
+        if (finished) return emptyList()
         if (line.startsWith("event:")) {
             lastEvent = line.removePrefix("event:").trim()
             return emptyList()

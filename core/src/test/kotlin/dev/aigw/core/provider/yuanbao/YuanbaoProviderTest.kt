@@ -56,7 +56,7 @@ class YuanbaoProviderTest {
     @Test
     fun `importCredentials 从 Cookie 建立账号`() {
         // host 指向本地不可达端口：连接立即被拒，测试不依赖外网也不挂起
-        val provider = YuanbaoProvider(hooks = NoopHooks(), host = "http://127.0.0.1:1")
+        val provider = YuanbaoProvider(hooks = dev.aigw.core.provider.ProviderHooks(), host = "http://127.0.0.1:1")
         val account = provider.importCredentials(cookie)
         assertNotNull(account)
         assertEquals("yuanbao", account.providerId)
@@ -171,6 +171,4 @@ class YuanbaoProviderTest {
         )
         assertFalse(result.status in 200..299, "不能连网的环境下应快速失败（而不是挂起）")
     }
-
-    private class NoopHooks : dev.aigw.core.provider.ProviderHooks()
 }

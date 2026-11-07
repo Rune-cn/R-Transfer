@@ -23,6 +23,7 @@ import dev.aigw.core.util.HttpSupport
 import dev.aigw.core.util.arrayOrNull
 import dev.aigw.core.util.bodySnippet
 import dev.aigw.core.util.firstString
+import dev.aigw.core.util.longOrNull
 import dev.aigw.core.util.newCompletionId
 import dev.aigw.core.util.objOrNull
 import dev.aigw.core.util.randomHex
@@ -266,18 +267,21 @@ class YuanbaoProvider(
             connectTimeoutMs = 15_000,
             readTimeoutMs = 30_000,
         )
-        val status = conn.responseCode
-        val text = HttpSupport.readBody(conn)
-        conn.disconnect()
-        if (status !in 200..299) {
-            throw IllegalStateException("创建会话失败（HTTP $status）：${text.take(200)}")
+        try {
+            val status = conn.responseCode
+            val text = HttpSupport.readBody(conn)
+            if (status !in 200..299) {
+                throw IllegalStateException("创建会话失败（HTTP $status）：${text.take(200)}")
+            }
+            val cid = runCatching {
+                val obj = JsonParser.parseString(text).asJsonObject
+                obj.stringOrNull("id") ?: obj.objOrNull("data")?.stringOrNull("id").orEmpty()
+            }.getOrDefault("")
+            if (cid.isEmpty()) throw IllegalStateException("创建会话响应缺少 id：${text.take(200)}")
+            return cid
+        } finally {
+            conn.disconnect()
         }
-        val cid = runCatching {
-            val obj = JsonParser.parseString(text).asJsonObject
-            obj.stringOrNull("id") ?: obj.objOrNull("data")?.stringOrNull("id").orEmpty()
-        }.getOrDefault("")
-        if (cid.isEmpty()) throw IllegalStateException("创建会话响应缺少 id：${text.take(200)}")
-        return cid
     }
 
     private fun openChatConnection(
@@ -349,14 +353,28 @@ class YuanbaoProvider(
         }.toString()
     }
 
-    /** 浏览器基础请求头（不含签名）。 */
+    /** 浏览器基础请求头（设备组 + Cookie，不含签名）。报告 §4：每个请求都会带这些。 */
     private fun baseHeaders(credential: YuanbaoCredential): Map<String, String> = mapOf(
         "User-Agent" to userAgent(),
         "Cookie" to credential.cookie,
         "Origin" to host,
         "Referer" to "$host/",
-    )
+        "X-Instance-ID" to "5",
+        "X-Source" to "web",
+        "X-Language" to "zh-CN",
+        "X-device-id" to credential.deviceId,
+        "X-HY93" to credential.deviceId,
+        "X-Platform" to "web",
+        "x-commit-tag" to YuanbaoConstants.X_COMMIT_TAG,
+        "X-WebVersion" to YuanbaoConstants.X_WEB_VERSION,
+    ).filterValues { it.isNotEmpty() }
 
+    /**
+     * 需要签名的路径补三件套。签名来源优先级：
+     * 1. 账号凭证里的静态签名（浏览器抓包）；
+     * 2. 铸造服务（账号级 [UskeyConfig.serviceUrl] 或 provider 默认地址）。
+     * 都没有 → 抛异常（调用方转 FailedChatCall，不发起请求，避免扣费）。
+     */
     /**
      * 需要签名的路径补三件套。签名来源优先级：
      * 1. 账号凭证里的静态签名（浏览器抓包）；
@@ -371,7 +389,7 @@ class YuanbaoProvider(
         if (config != null && config.hasStatic() &&
             (config.timestamp == 0L || nowMillis() - config.timestamp < 5 * 60 * 1000L)
         ) {
-            return staticHeaders(config)
+            return staticHeaders(config, credential)
         }
 
         // 2) 铸造服务
@@ -382,7 +400,9 @@ class YuanbaoProvider(
             } catch (e: Exception) {
                 throw UskeyRequiredException("USKey 铸造服务不可用（$service）：${e.message ?: "未知错误"}")
             }
-            return minted
+            // X-HY93（qimei uuid）：铸造服务没给时回退设备 id
+            return if (minted.containsKey("X-HY93")) minted
+            else minted + mapOf("X-HY93" to credential.deviceId)
         }
 
         throw UskeyRequiredException(
@@ -391,14 +411,14 @@ class YuanbaoProvider(
         )
     }
 
-    private fun staticHeaders(config: UskeyConfig): Map<String, String> {
+    private fun staticHeaders(config: UskeyConfig, credential: YuanbaoCredential): Map<String, String> {
         val params = config.params.ifEmpty { "h38=${config.h38}&timestamp=${config.timestamp}&platform=web" }
         return mapOf(
             "X-HY92" to config.h38,
+            "X-HY93" to credential.deviceId,
             "X-Timestamp" to (if (config.timestamp > 0) config.timestamp else nowMillis()).toString(),
             "X-Bus-Params-Md5" to md5(params),
             "X-Uskey" to config.uskey,
-            "X-HY93" to (config.params.takeIf { it.isNotEmpty() }?.let { "" } ?: "static"),
         ).filterValues { it.isNotEmpty() }
     }
 

@@ -9,6 +9,7 @@ import dev.aigw.core.provider.raccoon.RaccoonProvider
 import dev.aigw.core.provider.trae.TraeConstants
 import dev.aigw.core.provider.trae.TraeProvider
 import dev.aigw.core.provider.trae.TraeVersion
+import dev.aigw.core.provider.yuanbao.YuanbaoConstants
 import dev.aigw.core.provider.yuanbao.YuanbaoProvider
 
 /**
@@ -80,7 +81,7 @@ internal fun registerBuiltinProviders(engine: GatewayEngine) {
             hooks = engine.hooks,
             nowMillis = { engine.now() },
             // 本地 USKey 铸造服务：默认取供应商设置里的 uskeyServiceUrl，账号级配置可覆盖
-            defaultUskeyServiceUrl = engine.providerSettings(YuanbaoProvider.ID).option("uskeyServiceUrl", ""),
+            defaultUskeyServiceUrl = engine.providerSettings(YuanbaoConstants.PROVIDER_ID).option("uskeyServiceUrl", ""),
         ),
     )
 }
