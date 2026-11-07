@@ -63,6 +63,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+import androidx.compose.foundation.layout.size
 
 /** 勾选树里的账号：导出（AccountStatus）与导入（ProviderAccount）共用。 */
 private data class SelectableAccount(val providerId: String, val uid: String, val nickname: String) {
@@ -208,17 +209,17 @@ fun MiuixAccountTransferPage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item { Spacer(modifier = Modifier.size(12.dp)) }
             item { SmallTitle("导出") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     Text(
                         text = "导出内容含各账号的登录凭证（token），请勿外传。全程只经剪贴板或你选定的文件，不联网。",
                         style = MiuixTheme.textStyles.footnote2,
@@ -300,7 +301,7 @@ fun MiuixAccountTransferPage(
 
             item { SmallTitle("导入") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     Text(
                         text = "粘贴导出内容，或选择一个 .json 文件。内容贴进来会自动识别，列出账号后可勾选要导入哪些。",
                         style = MiuixTheme.textStyles.footnote2,
@@ -346,7 +347,7 @@ fun MiuixAccountTransferPage(
 
             parsed?.let { accounts ->
                 item {
-                    PreferenceCard() {
+                    PreferenceCard {
                         val grouped = uiState.providers
                             .map { info -> info.id to accounts.filter { it.providerId == info.id } }
                             .filter { it.second.isNotEmpty() }
@@ -413,7 +414,7 @@ fun MiuixAccountTransferPage(
 
             result?.let { outcome ->
                 item {
-                    PreferenceCard() {
+                    PreferenceCard {
                         BasicComponent(
                             title = "导入完成",
                             summary = "新增 ${outcome.added.size} · 覆盖 ${outcome.updated.size} · " +

@@ -49,6 +49,7 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.basic.Switch
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+import androidx.compose.foundation.layout.size
 
 /**
  * 自定义供应商的新建 / 编辑。
@@ -115,17 +116,17 @@ fun MiuixCustomProviderPage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item { Spacer(modifier = Modifier.size(12.dp)) }
             item { SmallTitle("基本信息") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextField(
                             value = name,
@@ -187,7 +188,7 @@ fun MiuixCustomProviderPage(
 
             item { SmallTitle("怎么填") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     BasicComponent(
                         title = "接口地址",
                         summary = "多数中转站填到 /v1 即可，例如 https://api.example.com/v1；" +

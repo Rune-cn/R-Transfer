@@ -42,7 +42,6 @@ import java.text.DateFormat
 import java.util.Date
 import org.koin.androidx.compose.koinViewModel
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -126,17 +125,16 @@ fun MiuixCreditsPage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (providersWithAccounts.isEmpty()) {
                 item {
-                    PreferenceCard() {
+                    PreferenceCard {
                         BasicComponent(
                             title = "还没有账号",
                             summary = "先去「供应商」页添加账号，额度会显示在这里。",
@@ -149,7 +147,7 @@ fun MiuixCreditsPage(
 
             item { SmallTitle("额度概览") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     val known = uiState.accounts.filter { it.creditsKnown }
                     BasicComponent(
                         title = "额度合计",
@@ -287,17 +285,16 @@ private fun MiuixProviderCreditsPage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (accounts.isEmpty()) {
                 item {
-                    PreferenceCard() {
+                    PreferenceCard {
                         BasicComponent(
                             title = "还没有账号",
                             summary = "先去该供应商页添加账号。",
@@ -314,7 +311,7 @@ private fun MiuixProviderCreditsPage(
                 val packs = state.creditPacks["$providerId/${account.uid}"].orEmpty()
                 val bills = state.pointsBills["$providerId/${account.uid}"]
 
-                PreferenceCard() {
+                PreferenceCard {
                     BasicComponent(
                         title = account.nickname.ifEmpty { account.uid },
                         summary = buildString {

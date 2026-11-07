@@ -52,6 +52,7 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.window.WindowDialog
 import app.ai.rune.ziyong.transfer.ui.page.miuix.settings.common.PreferenceCard
+import androidx.compose.foundation.layout.size
 
 /**
  * 并发与容错：四组参数，分别对应上游异常时的四种处理方式。
@@ -107,17 +108,17 @@ fun MiuixResiliencePage(
                 .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
             contentPadding = PaddingValues(
-                start = innerPadding.calculateStartPadding(layoutDirection) + 12.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = innerPadding.calculateEndPadding(layoutDirection) + 12.dp,
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                top = innerPadding.calculateTopPadding(),
+                end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = outerPadding.calculateBottomPadding(),
             ),
             overscrollEffect = null,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            item { Spacer(modifier = Modifier.size(12.dp)) }
             item { SmallTitle("并发闸门") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     ParamRow(
                         "单账号在途上限",
                         if (failover.concurrency.maxPerAccount == 0) {
@@ -147,7 +148,7 @@ fun MiuixResiliencePage(
 
             item { SmallTitle("失败转移") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -187,7 +188,7 @@ fun MiuixResiliencePage(
 
             item { SmallTitle("熔断器（按供应商）") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     ParamRow("连续失败阈值", "${failover.circuitBreaker.failureThreshold} 次")
                     ParamRow("熔断静默时长", "${failover.circuitBreaker.openDurationMs / 1000} 秒")
                     ParamRow("半开恢复成功数", "${failover.circuitBreaker.halfOpenSuccessCount} 次")
@@ -201,7 +202,7 @@ fun MiuixResiliencePage(
 
             item { SmallTitle("模型级冷却") }
             item {
-                PreferenceCard() {
+                PreferenceCard {
                     ParamRow("冷却时长", "${failover.modelCooldown.cooldownMs / 1000} 秒")
                     ParamRow("冷却上限", "${failover.modelCooldown.maxCooldownMs / 1000} 秒")
                     Text(
