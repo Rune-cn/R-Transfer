@@ -342,11 +342,12 @@ class YuanbaoProvider(
         put("X-Platform", "win")
         put("X-WebVersion", YuanbaoConstants.X_WEB_VERSION)
         put("Accept-Charset", "utf-8")
-        if (credential.deviceId.isNotEmpty()) {
-            put("X-device-id", credential.deviceId)
-            put("X-HY93", credential.deviceId)
-        }
-        if (credential.h38.isNotEmpty()) {
+        // 设备画像必须成对：qimei uuid（X-device-id/X-HY93）与 h38（X-HY92）要么都传、要么都不传。
+        // 只传一半会被上游判为「画像不一致」而拒绝对话。
+        val deviceId = credential.resolvedDeviceId()
+        if (deviceId.isNotEmpty() && credential.h38.isNotEmpty()) {
+            put("X-device-id", deviceId)
+            put("X-HY93", deviceId)
             put("X-HY92", credential.h38)
         }
     }

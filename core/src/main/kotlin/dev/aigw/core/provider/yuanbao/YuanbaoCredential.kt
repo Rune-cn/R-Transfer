@@ -37,6 +37,16 @@ data class YuanbaoCredential(
         return cookieValue("_qimei_uuid42")
     }
 
+    /**
+     * 用于 `X-device-id` / `X-HY93` 的 qimei uuid。
+     *
+     * 优先用显式配置的 [deviceId]，否则从 Cookie 的 `_qimei_uuid42` 取
+     * （浏览器登录后的 Cookie 里就有）。它与 [h38] 必须成对出现：
+     * 只传一个会被上游判为「设备画像不一致」而拒绝。
+     */
+    fun resolvedDeviceId(): String =
+        deviceId.ifEmpty { cookieValue("_qimei_uuid42") }
+
     private fun cookieValue(name: String): String {
         for (part in cookie.split(";")) {
             val idx = part.indexOf('=')

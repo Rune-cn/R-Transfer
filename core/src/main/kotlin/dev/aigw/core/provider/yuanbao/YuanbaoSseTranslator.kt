@@ -71,15 +71,24 @@ class YuanbaoSseTranslator(
         return listOf(chunk(JsonObject(), "stop"), DONE)
     }
 
+    /**
+     * 错误帧 → 标准 OpenAI 错误帧（`data: {"error":{...}}`）。
+     *
+     * 不再把错误文案当成 content 输出：那样客户端会把它当作模型回复
+     * （例如「服务繁忙，请稍后再试」看起来像模型在说话），
+     * 网关也无法把这次调用标为失败。
+     */
     private fun onFailed(event: JsonObject): List<String> {
-        // 错误帧：把提示塞进 content 交给客户端展示，然后正常收尾（不中断 [DONE]）。
         if (finished) return emptyList()
         finished = true
         val message = event.stringOrNull("msg").orEmpty().ifEmpty { "上游错误" }
-        return listOf(
-            chunk(textDelta(message), "stop"),
-            DONE,
-        )
+        val errorFrame = JsonObject().apply {
+            add("error", JsonObject().apply {
+                addProperty("message", message)
+                addProperty("type", "upstream_error")
+            })
+        }
+        return listOf("data: $errorFrame\n\n", DONE)
     }
 
     private fun chunk(delta: JsonObject, finishReason: String? = null): String {

@@ -45,6 +45,15 @@ class YuanbaoProviderTest {
     }
 
     @Test
+    fun `设备画像成对解析（cookie 里的 qimei uuid）`() {
+        val credential = YuanbaoCredential.fromPasted(cookie)!!
+        // cookie 未显式带 deviceId 时，回退到 _qimei_uuid42
+        assertEquals("dev42", credential.resolvedDeviceId())
+        // 显式配置优先
+        assertEquals("explicit", credential.copy(deviceId = "explicit").resolvedDeviceId())
+    }
+
+    @Test
     fun `provider 元数据正确`() {
         val provider = YuanbaoProvider()
         assertEquals("yuanbao", provider.id)
@@ -127,11 +136,13 @@ class YuanbaoProviderTest {
     }
 
     @Test
-    fun `error 帧输出提示并收尾`() {
+    fun `error 帧输出标准错误格式而非内容`() {
         val translator = YuanbaoSseTranslator("id1", "m1", 1700000000)
-        val out = translator.translate("data: {\"type\":\"error\",\"msg\":\"抱歉，我无法回答\"}")
+        val out = translator.translate("data: {\"type\":\"error\",\"msg\":\"服务繁忙，请稍后再试。\"}")
         assertEquals(2, out.size)
-        assertTrue(out[0].contains("抱歉"))
+        assertTrue(out[0].contains("\"error\""), "应为 OpenAI 错误帧")
+        assertTrue(out[0].contains("服务繁忙"))
+        assertFalse(out[0].contains("\"choices\""), "错误帧不应伪装成正常回复")
         assertTrue(out[1].contains("[DONE]"))
     }
 

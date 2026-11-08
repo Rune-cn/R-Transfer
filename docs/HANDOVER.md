@@ -304,11 +304,19 @@ AnimatedVisibility(
   （返回「抱歉，我无法回答这个问题，让我们换个话题再聊聊吧」，且照样消耗额度）。
   它是**设备指纹、长期有效**（不像 USKey 会过期），从浏览器 F12 → Application →
   Local Storage → `_qimei_h38` 复制一次即可，导入账号时一并填写（可选字段）。
-  头细节与 `yuanbao2api` 保持一致：截断 UA（不含 Chrome 版本段）、`accept-charset: utf-8`、
+  **画像是成对的**：`h38`（`X-HY92`）与 qimei uuid（`X-device-id`/`X-HY93`，自动取自 Cookie 的
+  `_qimei_uuid42`）要么都传、要么都不传；只传一半会被判「画像不一致」而拒绝；
+- 头细节与 `yuanbao2api` 保持一致：截断 UA（不含 Chrome 版本段）、`accept-charset: utf-8`、
   不额外传 `x-instance-id` / `x-commit-tag`（多传会与设备画像不一致）；
+- **上游错误提示**（如「服务繁忙，请稍后再试。」「抱歉，我无法回答…」）会以标准
+  OpenAI 错误帧（`data: {"error":{...}}`）透传——不再伪装成模型回复，
+  这样客户端能正确识别失败，调用记录也能标为失败（区别于以前的「看起来像模型在说服务繁忙」）；
 - 多轮对话：元宝只收纯文本 `prompt`，网关把 OpenAI `messages`（含 system 与历史）拼接后发送；
 - **不支持 OpenAI function calling**：客户端带 `tools` 时明确拒绝（CLIENT 错误），
   元宝的联网搜索由上游自行执行。
+
+> 「服务繁忙，请稍后再试。」属上游**临时限流**：稍后重试即可；若频繁出现，
+> 说明该账号被限流，可在账号池加号（网关的失败转移会换号重试非流式请求）。
 
 > 历史：曾实现过「qimei USKey 铸造器」（含 WebView 版），因该结论不成立已整体移除，
 > 代码回到「Cookie + 直连」的简单形态。
