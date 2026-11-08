@@ -395,11 +395,21 @@ class WebViewUskeyMinter(
               function fail(reason){
                 window.__uskayMintResult = {ok:false, reason: reason + (lastErr ? ('; last=' + lastErr) : '')};
               }
-              function useModule(M, ts, params){
-                var QW = (M && M.QimeiWeb) || M;
-                if (typeof QW !== 'function') { lastErr = 'bad-export:' + typeof QW; return false; }
+              // 按「方法特征」识别 qimei 导出：不依赖模块 id 与导出名（前端改版后两者都可能变）。
+              function pick(v){
+                var list = [v, v && v.default, v && v.QimeiWeb, v && v.default && v.default.QimeiWeb];
+                for (var i = 0; i < list.length; i++) {
+                  var c = list[i];
+                  if (!c) continue;
+                  if (typeof c === 'object' && typeof c.getUSKeySync === 'function') return c;
+                  if (typeof c === 'function' && c.prototype && typeof c.prototype.getUSKeySync === 'function') return c;
+                }
+                return null;
+              }
+              function sign(target, ts, params){
                 try {
-                  var inst = new QW({appKey:'', disableDebugger:true});
+                  var inst = target;
+                  if (typeof target === 'function') inst = new target({appKey:'', disableDebugger:true});
                   var s = inst.getUSKeySync('7800385', h38, params);
                   if (!s) { lastErr = 'empty-uskey'; return false; }
                   window.__uskayMintResult = {ok:true, h38:h38, ts:ts, params:params, uskey:encodeURIComponent(s)};
@@ -414,39 +424,42 @@ class WebViewUskeyMinter(
                 try {
                   window.webpackChunk_N_E.push([[Math.random()], {}, function(req){
                     if (done) return;
-                    // 1) 先试结论里的模块 id
+                    // 1) 已知 id（仅作为快速路径；改版后可能已不是 qimei 模块）
                     try {
                       var M = req(94482);
-                      if (useModule(M, ts, params)) { done = true; return; }
+                      var t = pick(M);
+                      if (t && sign(t, ts, params)) { done = true; return; }
+                      if (!t) lastErr = 'id94482:' + (typeof M);
                     } catch(e) { lastErr = 'mod94482:' + (e && e.message || e); }
-                    // 2) 兜底：扫描模块表找导出 QimeiWeb 的模块（前端改版后 id 可能变化）
+                    // 2) 已加载模块缓存（安全：不执行新模块）
+                    try {
+                      var cache = req.c || {};
+                      for (var id in cache) {
+                        var t2 = pick(cache[id] && cache[id].exports);
+                        if (t2 && sign(t2, ts, params)) { done = true; return; }
+                      }
+                    } catch(e2) { lastErr = 'cache:' + (e2 && e2.message || e2); }
+                    // 3) 模块表扫描（兜底；会执行模块，限量避免副作用过大）
                     try {
                       var mods = req.m || {};
                       var ids = Object.keys(mods);
-                      for (var i = 0; i < ids.length && i < 2000; i++) {
-                        var id = ids[i];
-                        if (String(id) === '94482') continue;
+                      for (var i = 0; i < ids.length && i < 1200; i++) {
                         try {
-                          var MM = req(id);
-                          if (MM && typeof MM.QimeiWeb === 'function') {
-                            if (useModule(MM, ts, params)) { done = true; return; }
-                          }
-                        } catch(e2) { /* 单个模块执行失败属正常，继续 */ }
+                          var t3 = pick(req(ids[i]));
+                          if (t3 && sign(t3, ts, params)) { done = true; return; }
+                        } catch(e3) {}
                       }
-                    } catch(e3) { lastErr = 'scan:' + (e3 && e3.message || e3); }
-                    // 扫描完仍未找到：记录模块表规模与页面地址，便于区分「版本变化」与「被重定向到登录页」
-                    if (!done && !lastErr) {
-                      lastErr = 'no-qimei-mod@' + String(location.pathname || '');
-                    }
+                    } catch(e4) { lastErr = 'scan:' + (e4 && e4.message || e4); }
+                    if (!done && !lastErr) lastErr = 'no-qimei@' + String(location.pathname || '');
                   }]);
-                } catch(e4) { lastErr = 'push:' + (e4 && e4.message || e4); }
+                } catch(e5) { lastErr = 'push:' + (e5 && e5.message || e5); }
                 if (!done) {
                   if (attempts >= 6) fail('mint-failed');
                   else setTimeout(tryOnce, 800);
                 }
               }
               // h38 出现得比 webpack 依赖就绪更早：先等页面 JS 稳定再铸造
-              setTimeout(tryOnce, 1500);
+              setTimeout(tryOnce, 1200);
             })()
         """.trimIndent()
 
