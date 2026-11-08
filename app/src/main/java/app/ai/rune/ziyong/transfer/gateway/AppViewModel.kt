@@ -24,6 +24,9 @@ import app.ai.rune.ziyong.transfer.ui.theme.parseHexColor
 import app.ai.rune.ziyong.transfer.gateway.service.GatewayService
 import app.ai.rune.ziyong.transfer.gateway.service.GatewayTileService
 import app.ai.rune.ziyong.transfer.gateway.service.LoginWaitService
+import app.ai.rune.ziyong.transfer.uskey.UskeyMinterManager
+import dev.aigw.core.provider.yuanbao.YuanbaoConstants
+import dev.aigw.core.provider.yuanbao.YuanbaoCredential
 import dev.aigw.core.gateway.BatchActionResult
 import dev.aigw.core.gateway.BatchProgress
 import dev.aigw.core.gateway.BatchTarget
@@ -358,6 +361,7 @@ private class Snapshot(
 class AppViewModel(
     private val app: Application,
     private val engine: GatewayEngine,
+    private val uskeyMinter: UskeyMinterManager,
 ) : ViewModel() {
 
     /** 本次启动是否发生过端口回退；非空时会在启动成功后提示用户。 */
@@ -418,6 +422,10 @@ class AppViewModel(
 
     init {
         engine.activeRequests.addListener(activeRequestsListener)
+        // 已有元宝账号时，后台自动接上内置 USKey 铸造器（对话必需，用户无感）。
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { ensureYuanbaoUskeySetup() }
+        }
         val initialActive = engine.activeRequests.snapshot()
         lastActiveSignature = initialActive.joinToString(";") { "${it.id}:${it.providerId}:${it.phase}" }
         _state.value = _state.value.copy(activeRequests = initialActive)
@@ -1171,8 +1179,47 @@ class AppViewModel(
             _state.value = _state.value.copy(busy = "正在导入")
             val outcome = withContext(Dispatchers.IO) { engine.importAccountJson(providerId, raw) }
             _state.value = _state.value.copy(busy = "", notice = noticeOf(outcome))
+            // 元宝：导入成功后自动接上内置 USKey 铸造器（对话必需，用户无感）
+            if (outcome.ok && providerId == YuanbaoConstants.PROVIDER_ID) {
+                withContext(Dispatchers.IO) { ensureYuanbaoUskeySetup() }
+            }
             refresh()
         }
+    }
+
+    // ------------------------------------------------------------------ 元宝 USKey 铸造器（自动接线）
+
+    /**
+     * 确保内置 USKey 铸造器已启动，并把本机回环地址写入全部元宝账号的凭证。
+     *
+     * 元宝对话需要 qimei USKey（动态签名）：这里把 `http://127.0.0.1:PORT/uskey`
+     * 写进账号，provider 每次对话前自动取新鲜签名——用户只需在内置浏览器里登录。
+     */
+    private fun ensureYuanbaoUskeySetup() {
+        if (engine.accounts(YuanbaoConstants.PROVIDER_ID).isEmpty()) return
+        if (!uskeyMinter.ensureStarted { firstYuanbaoCookie() }) return
+        val url = uskeyMinter.serviceUrl ?: return
+        for (account in engine.accounts(YuanbaoConstants.PROVIDER_ID)) {
+            val raw = engine.account(account.providerId, account.uid) ?: continue
+            val current = runCatching { YuanbaoCredential.parse(raw.secret) }.getOrNull() ?: continue
+            if (current.uskeyServiceUrl == url) continue
+            engine.updateAccountSecret(
+                account.providerId,
+                account.uid,
+                current.copy(uskeyServiceUrl = url).toJson(),
+            )
+        }
+    }
+
+    /** 取任一元宝账号的 Cookie 供铸造器加载页面（h38 为设备级，账号间一致）。 */
+    private fun firstYuanbaoCookie(): String {
+        for (account in engine.accounts(YuanbaoConstants.PROVIDER_ID)) {
+            if (!account.usable) continue
+            val raw = engine.account(account.providerId, account.uid) ?: continue
+            val current = runCatching { YuanbaoCredential.parse(raw.secret) }.getOrNull() ?: continue
+            if (current.cookie.isNotEmpty()) return current.cookie
+        }
+        return ""
     }
 
     /** 添加自定义供应商账号：每个 key 一个账号，名称可选（默认用供应商名）；同时保存供应商的模型列表。 */

@@ -27,6 +27,14 @@ data class YuanbaoCredential(
      * 获取方式：浏览器 F12 → Application → Local Storage → `_qimei_h38`。
      */
     val h38: String = "",
+    /**
+     * USKey 铸造服务地址（可选）。
+     *
+     * 元宝对话**需要 qimei USKey 动态签名**（实测：缺它一律返回「抱歉，我无法回答这个问题」）。
+     * App 内置铸造器会把本机回环地址写入这里（`http://127.0.0.1:PORT/uskey`），
+     * 每次对话前自动取新鲜签名——用户无感；也可填外部 `uskey_browser.py --serve` 的地址。
+     */
+    val uskeyServiceUrl: String = "",
 ) {
 
     /** 登录用户 id（cookie hy_user）；为空时由初始化流程通过 /api/getuserinfo 补齐。 */
@@ -63,6 +71,7 @@ data class YuanbaoCredential(
         addProperty("cookie", cookie)
         addProperty("deviceId", deviceId)
         if (h38.isNotEmpty()) addProperty("h38", h38)
+        if (uskeyServiceUrl.isNotEmpty()) addProperty("uskeyServiceUrl", uskeyServiceUrl)
     }.toString()
 
     companion object {
@@ -75,6 +84,7 @@ data class YuanbaoCredential(
                 cookie = cookie,
                 deviceId = obj.get("deviceId")?.asString.orEmpty(),
                 h38 = obj.get("h38")?.asString.orEmpty(),
+                uskeyServiceUrl = obj.get("uskeyServiceUrl")?.asString.orEmpty(),
             )
         }
 

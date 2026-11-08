@@ -67,6 +67,13 @@ val gatewayModule = module {
      */
     single<GatewayEngine> { get<GatewayHolder>().engine }
 
+    /**
+     * 内置元宝 USKey 铸造器（WebView 加载元宝页面 + qimei 现场签名）。
+     *
+     * 懒启动：元宝账号存在时才创建 WebView；服务地址由 AppViewModel 自动写入账号凭证。
+     */
+    single<UskeyMinterManager> { UskeyMinterManager(androidContext()) }
+
     // AppViewModel 需要 Application（用于启动服务/装 APK）与已有的唯一引擎实例；
     // 两者都已在容器里，Koin 按构造参数自动注入
     viewModelOf(::AppViewModel)

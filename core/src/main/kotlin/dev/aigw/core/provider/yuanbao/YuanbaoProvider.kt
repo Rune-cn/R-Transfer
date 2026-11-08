@@ -115,8 +115,17 @@ class YuanbaoProvider(
 
         // 会话 ID 本地生成（临时会话），不调用创建会话接口。
         val cid = UUID.randomUUID().toString()
+        // USKey 动态签名：配置了铸造服务时注入；缺它上游一律返回「抱歉，我无法回答这个问题」。
+        val signed = try {
+            mintSignedHeaders(credential)
+        } catch (e: Exception) {
+            return StreamFailureChatCall(
+                0,
+                UpstreamError(ErrorKind.CLIENT, "USKey 铸造器不可用：${e.message ?: "未知错误"}"),
+            )
+        }
         val conn = try {
-            openChatConnection(credential, cid, agentId, model, openAiBody)
+            openChatConnection(credential, cid, agentId, model, openAiBody, signed)
         } catch (e: Exception) {
             return FailedChatCall(0, e.message ?: "连接失败")
         }
@@ -257,6 +266,7 @@ class YuanbaoProvider(
         agentId: String,
         model: String,
         openAiBody: String,
+        signed: Map<String, String>,
     ): HttpURLConnection {
         val prompt = buildPrompt(openAiBody)
         val body = buildChatBody(prompt, agentId, model)
@@ -271,15 +281,69 @@ class YuanbaoProvider(
             "X-Source" to "web",
             "Referer" to "$host/chat/$agentId/$cid",
         )
+        // signed 放最后：其 X-HY92/设备头（来自铸造器）覆盖基础头里的账号级画像，保证与 USKey 同源
         return HttpSupport.open(
             url = "$host/api/chat/$cid",
             method = "POST",
-            headers = baseHeaders(credential) + extra,
+            headers = baseHeaders(credential) + extra + signed,
             body = body,
             connectTimeoutMs = 15_000,
             readTimeoutMs = 120_000,
         )
     }
+
+    /**
+     * 取 USKey 签名三件套（`X-Uskey` / `X-Bus-Params-Md5` / `X-Timestamp`）与同源的 qimei 画像头。
+     *
+     * 来源是账号凭证里的 [YuanbaoCredential.uskeyServiceUrl]：App 内置铸造器会把本机回环地址
+     * 写进去（用户无感），也可填外部 `uskey_browser.py --serve` 的地址。未配置时返回空表
+     * （不注入签名，上游会返回「无法回答」——但至少请求能发出，错误可归因）。
+     *
+     * **画像必须与 USKey 同源**：`X-HY92` 用铸造器返回的 h38（而非账号里可能来自另一次浏览器的值），
+     * 否则「设备画像不一致」同样会被拒。
+     */
+    private fun mintSignedHeaders(credential: YuanbaoCredential): Map<String, String> {
+        val service = credential.uskeyServiceUrl
+        if (service.isEmpty()) return emptyMap()
+        val conn = HttpSupport.open(
+            url = service,
+            method = "GET",
+            headers = mapOf("Accept" to "application/json"),
+            connectTimeoutMs = 15_000,
+            readTimeoutMs = 90_000,
+        )
+        val (status, text) = try {
+            conn.responseCode to HttpSupport.readBody(conn)
+        } finally {
+            conn.disconnect()
+        }
+        if (status !in 200..299) throw IllegalStateException("服务返回 HTTP $status")
+        val obj = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull()
+            ?: throw IllegalStateException("服务返回非 JSON")
+        if (obj.boolOrNull("ok") != true) {
+            throw IllegalStateException(obj.stringOrNull("reason").orEmpty().ifEmpty { "ok=false" })
+        }
+        val h38 = obj.stringOrNull("h38").orEmpty()
+        val ts = obj.longOrNull("ts") ?: nowMillis()
+        val params = obj.stringOrNull("params").orEmpty()
+            .ifEmpty { "h38=$h38&timestamp=$ts&platform=web" }
+        val uskey = obj.stringOrNull("uskey").orEmpty()
+        if (uskey.isEmpty() || h38.isEmpty()) throw IllegalStateException("服务响应缺少 uskey/h38")
+        val deviceId = credential.resolvedDeviceId()
+        return buildMap {
+            put("X-HY92", h38)
+            if (deviceId.isNotEmpty()) {
+                put("X-HY93", deviceId)
+                put("X-device-id", deviceId)
+            }
+            put("X-Timestamp", ts.toString())
+            put("X-Bus-Params-Md5", md5(params))
+            put("X-Uskey", uskey)
+        }
+    }
+
+    private fun JsonObject.boolOrNull(name: String): Boolean? =
+        get(name)?.takeIf { it.isJsonPrimitive }?.asBoolean
 
     /**
      * 元宝请求体（对照 `yuanbao2api` 实测结构）。

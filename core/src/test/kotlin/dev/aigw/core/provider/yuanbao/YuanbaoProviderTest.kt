@@ -39,9 +39,26 @@ class YuanbaoProviderTest {
 
     @Test
     fun `凭证 JSON 序列化往返一致`() {
-        val original = YuanbaoCredential(cookie = "hy_token=a; hy_user=u1", deviceId = "d1", h38 = "hxyz")
+        val original = YuanbaoCredential(
+            cookie = "hy_token=a; hy_user=u1",
+            deviceId = "d1",
+            h38 = "hxyz",
+            uskeyServiceUrl = "http://127.0.0.1:1234/uskey",
+        )
         val parsed = YuanbaoCredential.parse(original.toJson())!!
         assertEquals(original, parsed)
+    }
+
+    @Test
+    fun `缺少 USKey 铸造服务时不注入签名头（provider 仍可加载）`() {
+        val provider = YuanbaoProvider(host = "http://127.0.0.1:1")
+        // 未配置 uskeyServiceUrl：不会去连铸造服务，直接走网络（此处必然失败但不崩）
+        val credential = YuanbaoCredential(cookie = cookie)
+        val result = provider.openChat(
+            ProviderAccount("yuanbao", "u1", "元宝", credential.toJson()),
+            """{"model":"deep_seek_v3","stream":true,"messages":[{"role":"user","content":"hi"}]}""",
+        )
+        assertFalse(result.status in 200..299)
     }
 
     @Test

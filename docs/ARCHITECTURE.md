@@ -44,6 +44,10 @@ build-plugins      rtransfer.* 构建约定插件（AGP 版本、SDK、签名读
 ```
 ```
 App.kt                Application：CrashHandler / HiddenApiBypass / Monet / 通知渠道 / startKoin；持有 gateway
+uskey/                ★ 内置元宝 USKey 铸造器（WebView 现场签名，自动接线，用户无感）
+├── WebViewUskeyMinter.kt   系统 WebView 加载元宝页面（qimei 环境）+ 注入铸造脚本
+├── LocalUskeyService.kt    127.0.0.1 随机端口，GET /uskey → {ok,h38,ts,params,uskey}
+└── UskeyMinterManager.kt   门面：懒启动 / 服务地址（Koin single）
 gateway/              网关逻辑（AppViewModel、服务、加密存储、KeepAlive 等）
 ├── GatewayHolder.kt  引擎持有者 + Context.gatewayEngine 扩展（UI 与服务共用同一引擎）
 ├── AppViewModel.kt   ★ 全部业务状态的唯一来源（1836 行；含 AppUiState 全字段）
@@ -89,7 +93,7 @@ ui/icons/                AppIcons / AppMiuixIcons
 ### DI（`di/`）
 
 - `init/app_modules.kt` — 总装配顺序：`gatewayModule` → `viewModelModule` → `serializationModule` → `coreModule` → `settingsModule` → `networkModule` → `updateModule` → `initModule`
-- `GatewayModule.kt` — 网关链：`single<Application>`（从 applicationContext 取，**不能用 androidApplication()**，否则自引用递归）→ `KeyValueStore` → `GatewayHolder`（回填 App.gateway）→ `GatewayEngine`（同一实例）→ `viewModelOf(::AppViewModel)`
+- `GatewayModule.kt` — 网关链：`single<Application>`（从 applicationContext 取，**不能用 androidApplication()**，否则自引用递归）→ `KeyValueStore` → `GatewayHolder`（回填 App.gateway）→ `GatewayEngine`（同一实例）→ `UskeyMinterManager`（内置元宝 USKey 铸造器）→ `viewModelOf(::AppViewModel)`
 
 ### 数据 / 领域（模板自带，已裁剪）
 

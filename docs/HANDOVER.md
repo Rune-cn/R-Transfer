@@ -304,12 +304,16 @@ AnimatedVisibility(
   也不会在元宝界面留下记录；
 - **不需要 qimei USKey**（早期逆向文档的结论有误：那条路依赖浏览器环境、不稳定）；
 - 只需基础浏览器头 + 关键头 `x-agentid: {agentId}/{conversationId}`、`x-requested-with: XMLHttpRequest`；
-- **设备标识 `h38`（`X-HY92`）建议配置**：上游按设备画像风控，缺失时对话会被拒
-  （返回「抱歉，我无法回答这个问题，让我们换个话题再聊聊吧」，且照样消耗额度）。
-  它是**设备指纹、长期有效**（不像 USKey 会过期），从浏览器 F12 → Application →
-  Local Storage → `_qimei_h38` 复制一次即可，导入账号时一并填写（可选字段）。
-  **画像是成对的**：`h38`（`X-HY92`）与 qimei uuid（`X-device-id`/`X-HY93`，自动取自 Cookie 的
-  `_qimei_uuid42`）要么都传、要么都不传；只传一半会被判「画像不一致」而拒绝；
+- **USKey 动态签名（对话必需，已自动接线）**：实测表明缺 USKey 时上游一律返回
+  「抱歉，我无法回答这个问题，让我们换个话题再聊聊吧。」。App 内置铸造器
+  （`app/.../uskey/`）会把本机回环地址自动写入账号凭证的 `uskeyServiceUrl`，
+  provider 每次对话前取新鲜签名三件套（`X-Uskey` / `X-Bus-Params-Md5` / `X-Timestamp`）
+  与**同源**的 `X-HY92`（用铸造器返回的 h38，避免「画像不一致」）。
+  **用户只需在内置浏览器里登录**——登录/导入成功后自动启动铸造器，无额外操作；
+  也可填外部 `uskey_browser.py --serve` 的地址替代内置铸造器。
+- **设备标识 `h38`（`X-HY92`）**：未接铸造器时用账号里的 h38（F12 →
+  Application → Local Storage → `_qimei_h38`），与 qimei uuid（Cookie 的 `_qimei_uuid42`）
+  成对下发；接了铸造器则由铸造器提供同源 h38。
 - 头细节与 `yuanbao2api` 保持一致：截断 UA（不含 Chrome 版本段）、`accept-charset: utf-8`、
   不额外传 `x-commit-tag`；另按逆向报告补齐 `x-instance-id: 5` 与
   **`x-traceparent`（每请求唯一，`md5(randhex+5+uuid4)`）**——报告指出复用 traceparent 会触发
