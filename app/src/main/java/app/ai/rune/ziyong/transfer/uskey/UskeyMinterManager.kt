@@ -21,9 +21,12 @@ class UskeyMinterManager(
 
     /** 铸造核心：WebView 懒创建。挂到当前 Activity 窗口上，保证 JS 常驻可执行。 */
     val minter: WebViewUskeyMinter by lazy {
-        WebViewUskeyMinter(appContext) {
-            (appContext as? app.ai.rune.ziyong.transfer.App)?.currentActivity
-        }
+        WebViewUskeyMinter(
+            context = appContext,
+            activityProvider = {
+                (appContext as? app.ai.rune.ziyong.transfer.App)?.currentActivity
+            },
+        )
     }
 
     /** 本机回环服务：按需启动；铸造需要账号 Cookie 时从注册的提供者取。 */
