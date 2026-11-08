@@ -25,12 +25,13 @@ class YuanbaoSseTranslator(
     private val completionId: String,
     private val model: String,
     private val createdSeconds: Long = System.currentTimeMillis() / 1000,
+    knownTools: Set<String> = emptySet(),
 ) {
     private var lastEvent: String? = null
     private var finished = false
     private var hasToolCalls = false
     private var toolCallIndex = 0
-    private val toolParser = YuanbaoToolBridge.StreamParser()
+    private val toolParser = YuanbaoToolBridge.StreamParser(knownTools)
 
     fun translate(line: String): List<String> {
         if (finished) return emptyList()

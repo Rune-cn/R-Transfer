@@ -58,15 +58,29 @@ object YuanbaoToolBridge {
         return buildString {
             append("\n# 可用工具\n")
             append("你可以调用以下工具来完成任务。\n\n")
-            append("**重要：当你需要调用工具时，必须严格按照以下格式输出：**\n\n")
+            append("**调用工具时，必须严格按下面两种格式之一输出（不要用其它格式）：**\n\n")
+            append("格式一（推荐）：\n")
             append("<|tool_calls_begin|>\n")
             append("{\"name\": \"函数名\", \"arguments\": {\"参数名\": \"参数值\"}}\n")
             append("<|tool_calls_end|>\n\n")
+            append("格式二（代码块）：\n")
+            append("```json\n")
+            append("{\"name\": \"函数名\", \"arguments\": {\"参数名\": \"参数值\"}}\n")
+            append("```\n\n")
+            append("示例（用户要求搜索时，你必须只输出工具调用，不要解释）：\n")
+            append("用户: 搜索今天的天气\n")
+            append("助手: <|tool_calls_begin|>\n")
+            append("{\"name\": \"web_search\", \"arguments\": {\"query\": \"今天天气\"}}\n")
+            append("<|tool_calls_end|>\n\n")
+            append("示例（不需要工具时，正常回答，不要输出任何标记）：\n")
+            append("用户: 你好\n")
+            append("助手: 你好！有什么可以帮你的？\n\n")
             append("注意事项：\n")
-            append("1. 工具调用必须用上述标记包裹，不要遗漏标记\n")
-            append("2. 标记内只能包含 JSON 格式的工具调用，不要添加其他文字\n")
-            append("3. 你可以同时调用多个工具，每个工具调用使用单独的标记对\n")
-            append("4. 如果不需要调用工具，直接回复用户即可，不要输出标记\n\n")
+            append("1. 工具调用必须用上述标记或代码块包裹，不要遗漏\n")
+            append("2. 包裹内只能包含 JSON 格式的工具调用，不要添加其他文字\n")
+            append("3. 你可以同时调用多个工具，每个工具使用单独的标记对\n")
+            append("4. 如果不需要调用工具，直接回复用户即可，不要输出标记\n")
+            append("5. 函数名必须是下方列表里的名字\n\n")
             append("可用工具列表：\n")
             append(descriptions)
             append('\n')
@@ -150,18 +164,90 @@ object YuanbaoToolBridge {
 
     // ------------------------------------------------------------------ 解析
 
-    /** 从完整文本里解析全部工具调用（非流式路径）。 */
-    fun parseToolCalls(text: String): List<ToolCall> {
-        val calls = mutableListOf<ToolCall>()
+    /** 代码块围栏（模型常用 ```json 包裹 JSON）。 */
+    private val FENCE_STARTS = listOf("```json", "```JSON", "```Json", "```")
+    private const val FENCE_END = "```"
+
+    /**
+     * 从完整文本里解析全部工具调用（非流式路径）。
+     *
+     * 依次尝试三种格式，命中即返回：
+     * 1. 专用标记 `<|tool_calls_begin|>…<|tool_calls_end|>`（提示词推荐格式）；
+     * 2. 代码块 ```json … ```；
+     * 3. 裸 JSON 对象（**仅当 name 在 [knownTools] 里**，避免把普通回答中的 JSON 误判）。
+     */
+    fun parseToolCalls(text: String, knownTools: Set<String> = emptySet()): List<ToolCall> {
+        // 1) 标记
+        val marked = mutableListOf<ToolCall>()
         var from = 0
         while (from < text.length) {
             val start = findMark(text, START_MARKS, from) ?: break
             val end = findMark(text, END_MARKS, start.index + start.mark.length) ?: break
             val json = text.substring(start.index + start.mark.length, end.index).trim()
-            parseOne(json)?.let { calls += it }
+            parseOne(json)?.let { marked += it }
             from = end.index + end.mark.length
         }
+        if (marked.isNotEmpty()) return marked
+
+        // 2) 代码块
+        val fenced = parseFenced(text, knownTools)
+        if (fenced.isNotEmpty()) return fenced
+
+        // 3) 裸 JSON（必须有已知工具名兜底，否则误判率太高）
+        return parseBareJson(text, knownTools)
+    }
+
+    private fun parseFenced(text: String, knownTools: Set<String>): List<ToolCall> {
+        val calls = mutableListOf<ToolCall>()
+        val regex = Regex("```(?:json)?\\s*([\\s\\S]*?)\\s*```", RegexOption.IGNORE_CASE)
+        for (match in regex.findAll(text)) {
+            val call = parseOne(match.groupValues[1].trim()) ?: continue
+            if (knownTools.isEmpty() || call.name in knownTools) calls += call
+        }
         return calls
+    }
+
+    private fun parseBareJson(text: String, knownTools: Set<String>): List<ToolCall> {
+        if (knownTools.isEmpty()) return emptyList()
+        val calls = mutableListOf<ToolCall>()
+        var i = 0
+        while (i < text.length) {
+            val start = text.indexOf('{', i)
+            if (start < 0) break
+            val end = balancedEnd(text, start)
+            if (end < 0) break
+            val call = parseOne(text.substring(start, end + 1))
+            if (call != null && call.name in knownTools) calls += call
+            i = end + 1
+        }
+        return calls
+    }
+
+    /** 从 [start]（必须是 `{`）找配对的 `}`；跳过字符串内的花括号与转义。 */
+    private fun balancedEnd(text: String, start: Int): Int {
+        var depth = 0
+        var inString = false
+        var escape = false
+        for (i in start until text.length) {
+            val c = text[i]
+            if (inString) {
+                when {
+                    escape -> escape = false
+                    c == '\\' -> escape = true
+                    c == '"' -> inString = false
+                }
+                continue
+            }
+            when (c) {
+                '"' -> inString = true
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return i
+                }
+            }
+        }
+        return -1
     }
 
     private data class MarkHit(val index: Int, val mark: String)
@@ -182,7 +268,7 @@ object YuanbaoToolBridge {
         val obj = runCatching { JsonParser.parseString(json).asJsonObject }.getOrNull() ?: return null
         val name = obj.stringOrNull("name").orEmpty()
         if (name.isEmpty()) return null
-        val argRaw = obj.get("arguments")
+        val argRaw = obj.get("arguments") ?: obj.get("parameters")
         val arguments = when {
             argRaw == null || argRaw.isJsonNull -> ""
             argRaw.isJsonPrimitive -> runCatching { argRaw.asString }.getOrDefault("")
@@ -195,12 +281,14 @@ object YuanbaoToolBridge {
 
     /**
      * 流式增量解析器：元宝 SSE 的 `text` 事件是**文本增量**，
-     * 工具调用标记可能跨多个 chunk。这里做状态机缓冲：
+     * 工具调用标记 / 代码块可能跨多个 chunk。状态机缓冲：
      * - 标记外的文本 → [Event.Text]（正常流式输出）
-     * - 完整的一对标记 → [Event.Call]（转成 tool_calls delta）
-     * - 未闭合的标记（流结束时仍在内）→ 丢弃，避免把半截 JSON 当正文
+     * - 完整标记对 → [Event.Call]
+     * - 完整代码块：JSON 的 name 命中 [knownTools] → [Event.Call]；
+     *   否则**原样输出整段文本**（普通人写的代码块不能被吞掉）
+     * - 未闭合的段在流结束时：标记段丢弃；代码块段原样输出
      */
-    class StreamParser {
+    class StreamParser(knownTools: Set<String> = emptySet()) {
         sealed interface Event {
             data class Text(val text: String) : Event
             data class Call(val call: ToolCall) : Event
@@ -208,64 +296,118 @@ object YuanbaoToolBridge {
             data object ToolMode : Event
         }
 
+        private val tools: Set<String> = knownTools
         private val pending = StringBuilder()
-        private var inTool = false
+        private val fenceText = StringBuilder()
+        private var mode = Mode.Normal
+
+        private enum class Mode { Normal, Marked, Fenced }
 
         fun feed(chunk: String): List<Event> {
             if (chunk.isEmpty()) return emptyList()
             pending.append(chunk)
             val events = mutableListOf<Event>()
             while (true) {
-                if (!inTool) {
-                    val hit = findMark(pending.toString(), START_MARKS, 0)
-                    if (hit != null) {
-                        if (hit.index > 0) {
-                            events += Event.Text(pending.substring(0, hit.index))
-                            pending.delete(0, hit.index)
-                        }
-                        pending.delete(0, hit.mark.length)
-                        inTool = true
-                        events += Event.ToolMode
-                    } else {
-                        // 无标记：输出安全前缀（保留可能是「开始标记前半段」的尾巴）
+                when (mode) {
+                    Mode.Normal -> {
                         val text = pending.toString()
-                        val keep = partialMarkSuffix(text, START_MARKS)
-                        val safeLen = text.length - keep
-                        if (safeLen > 0) {
-                            events += Event.Text(text.substring(0, safeLen))
-                            pending.delete(0, safeLen)
+                        val mark = findMark(text, START_MARKS, 0)
+                        val fence = findFenceStart(text)
+                        val useFence = fence != null && (mark == null || fence.index < mark.index)
+                        val hitIndex = if (useFence) fence!!.index else (mark?.index ?: -1)
+                        if (hitIndex < 0) {
+                            val keep = maxOf(
+                                partialMarkSuffix(text, START_MARKS),
+                                partialMarkSuffix(text, FENCE_STARTS),
+                            )
+                            val safeLen = text.length - keep
+                            if (safeLen > 0) {
+                                events += Event.Text(text.substring(0, safeLen))
+                                pending.delete(0, safeLen)
+                            }
+                            return events
                         }
-                        break
+                        if (hitIndex > 0) {
+                            events += Event.Text(text.substring(0, hitIndex))
+                            pending.delete(0, hitIndex)
+                        }
+                        if (useFence) {
+                            val start = fence!!.mark
+                            pending.delete(0, start.length)
+                            mode = Mode.Fenced
+                            fenceText.setLength(0)
+                            fenceText.append(start)
+                        } else {
+                            val start = mark!!.mark
+                            pending.delete(0, start.length)
+                            mode = Mode.Marked
+                            events += Event.ToolMode
+                        }
                     }
-                } else {
-                    val hit = findMark(pending.toString(), END_MARKS, 0)
-                    if (hit != null) {
-                        val json = pending.substring(0, hit.index).trim()
+
+                    Mode.Marked -> {
+                        val text = pending.toString()
+                        val hit = findMark(text, END_MARKS, 0) ?: return events
+                        val json = text.substring(0, hit.index).trim()
                         pending.delete(0, hit.index + hit.mark.length)
-                        inTool = false
+                        mode = Mode.Normal
                         parseOne(json)?.let { events += Event.Call(it) }
-                    } else {
-                        break // 等待更多增量
+                    }
+
+                    Mode.Fenced -> {
+                        val text = pending.toString()
+                        val end = text.indexOf(FENCE_END)
+                        if (end < 0) return events
+                        val inner = text.substring(0, end)
+                        pending.delete(0, end + FENCE_END.length)
+                        mode = Mode.Normal
+                        fenceText.append(inner).append(FENCE_END)
+                        val call = parseOne(inner.trim())
+                        if (call != null && (tools.isEmpty() || call.name in tools)) {
+                            events += Event.Call(call)
+                        } else {
+                            // 不是工具调用：原样输出（普通代码块不能吞）
+                            events += Event.Text(fenceText.toString())
+                        }
+                        fenceText.setLength(0)
                     }
                 }
             }
+        }
+
+        fun finish(): List<Event> {
+            val events = mutableListOf<Event>()
+            when (mode) {
+                Mode.Marked -> pending.clear()
+
+                Mode.Fenced -> {
+                    // 未闭合的代码块：原样输出，避免吞掉普通代码
+                    val rest = fenceText.toString() + pending.toString()
+                    fenceText.setLength(0)
+                    pending.clear()
+                    if (rest.isNotEmpty()) events += Event.Text(rest)
+                }
+
+                Mode.Normal -> {
+                    if (pending.isNotEmpty()) {
+                        events += Event.Text(pending.toString())
+                        pending.clear()
+                    }
+                }
+            }
+            mode = Mode.Normal
             return events
         }
 
-        /** 流结束：未闭合的工具段丢弃；返回剩余可输出的文本。 */
-        fun finish(): List<Event> {
-            if (inTool) {
-                pending.clear()
-                inTool = false
-                return emptyList()
+        private fun findFenceStart(text: String): MarkHit? {
+            var best: MarkHit? = null
+            for (mark in FENCE_STARTS) {
+                val idx = text.indexOf(mark)
+                if (idx >= 0 && (best == null || idx < best!!.index)) best = MarkHit(idx, mark)
             }
-            if (pending.isEmpty()) return emptyList()
-            val text = pending.toString()
-            pending.clear()
-            return listOf(Event.Text(text))
+            return best
         }
 
-        /** 文本末尾与任一标记前缀重合的长度（这部分先不输出，等下一个 chunk）。 */
         private fun partialMarkSuffix(text: String, marks: List<String>): Int {
             var best = 0
             for (mark in marks) {

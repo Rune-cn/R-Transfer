@@ -99,6 +99,8 @@ class YuanbaoProvider(
         val streaming = isStreamingBody(openAiBody)
         val agentId = YuanbaoConstants.DEFAULT_AGENT_ID
         val model = resolveModel(requestedModelOf(openAiBody))
+        // 工具名集合：宽松解析时用它校验，避免把普通回答里的 JSON 误判为工具调用
+        val knownTools = toolNamesOf(openAiBody)
 
         // 元宝不支持原生 function calling：由 YuanbaoToolBridge 用提示词模拟（见该类文档）。
         // 客户端带 tools 时不再拒绝，而是注入工具定义并解析模型输出里的调用标记。
@@ -133,7 +135,7 @@ class YuanbaoProvider(
 
         val stream = conn.inputStream
         if (streaming) {
-            val translator = YuanbaoSseTranslator(newCompletionId(), model, nowMillis() / 1000)
+            val translator = YuanbaoSseTranslator(newCompletionId(), model, nowMillis() / 1000, knownTools)
             val transformed = LineTransformStream(
                 source = stream,
                 transform = { line -> translator.translate(line) },
@@ -144,7 +146,7 @@ class YuanbaoProvider(
 
         // 非流式：把元宝 SSE 聚合为 OpenAI completion
         val aggregated = try {
-            val translator = YuanbaoSseTranslator(newCompletionId(), model, nowMillis() / 1000)
+            val translator = YuanbaoSseTranslator(newCompletionId(), model, nowMillis() / 1000, knownTools)
             val transformed = LineTransformStream(
                 source = stream,
                 transform = { line -> translator.translate(line) },
@@ -434,6 +436,18 @@ class YuanbaoProvider(
      * 顺序拼接 + 请作为助手继续回复」；有 tools 时额外注入工具定义与调用格式，
      * 并保留 `role: "tool"` 的执行结果（多轮工具调用必需）。
      */
+    /**
+     * 请求体里的工具名集合（宽松解析时校验用，避免把普通回答里的 JSON 误判为工具调用）。
+     */
+    private fun toolNamesOf(openAiBody: String): Set<String> {
+        val obj = runCatching { JsonParser.parseString(openAiBody).asJsonObject }.getOrNull()
+            ?: return emptySet()
+        val tools = obj.arrayOrNull("tools") ?: return emptySet()
+        return tools.mapNotNull { element ->
+            element.asObjectOrNull()?.objOrNull("function")?.stringOrNull("name")?.takeIf { it.isNotEmpty() }
+        }.toSet()
+    }
+
     private fun buildPrompt(openAiBody: String): String {
         val obj = runCatching { JsonParser.parseString(openAiBody).asJsonObject }.getOrNull()
             ?: return openAiBody

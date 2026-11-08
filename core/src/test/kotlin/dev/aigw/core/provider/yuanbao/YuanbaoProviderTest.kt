@@ -289,4 +289,46 @@ class YuanbaoProviderTest {
         val tail = translator.close()
         assertTrue(tail.any { it.contains("tool_calls") }, "结束帧 finish_reason 应为 tool_calls")
     }
+
+    @Test
+    fun `代码块格式的工具调用也能解析`() {
+        val text = "我来查一下\n```json\n{\"name\":\"web_search\",\"arguments\":{\"q\":\"hi\"}}\n```"
+        val calls = YuanbaoToolBridge.parseToolCalls(text, setOf("web_search"))
+        assertEquals(1, calls.size)
+        assertEquals("web_search", calls[0].name)
+    }
+
+    @Test
+    fun `裸 JSON 仅在工具名匹配时识别`() {
+        val text = "调用 {\"name\":\"web_search\",\"arguments\":{\"q\":\"x\"}}"
+        // 已知工具 → 识别
+        assertEquals(1, YuanbaoToolBridge.parseToolCalls(text, setOf("web_search")).size)
+        // 未知工具 → 不识别（避免把普通 JSON 当工具调用）
+        assertTrue(YuanbaoToolBridge.parseToolCalls(text, setOf("other_tool")).isEmpty())
+        // 无已知工具名单 → 不识别
+        assertTrue(YuanbaoToolBridge.parseToolCalls(text).isEmpty())
+    }
+
+    @Test
+    fun `流式代码块非工具调用时原样输出`() {
+        val parser = YuanbaoToolBridge.StreamParser(setOf("web_search"))
+        val events = mutableListOf<YuanbaoToolBridge.StreamParser.Event>()
+        events += parser.feed("示例代码：```json{\"a\":1}```")
+        events += parser.finish()
+        val text = events.filterIsInstance<YuanbaoToolBridge.StreamParser.Event.Text>()
+            .joinToString("") { it.text }
+        assertTrue(text.contains("```json"), "普通代码块必须原样保留")
+        assertTrue(events.none { it is YuanbaoToolBridge.StreamParser.Event.Call })
+    }
+
+    @Test
+    fun `流式代码块工具调用可识别`() {
+        val parser = YuanbaoToolBridge.StreamParser(setOf("web_search"))
+        val events = mutableListOf<YuanbaoToolBridge.StreamParser.Event>()
+        events += parser.feed("```json{\"name\":\"web_search\",\"arguments\":\"{}\"}```")
+        events += parser.finish()
+        val calls = events.filterIsInstance<YuanbaoToolBridge.StreamParser.Event.Call>()
+        assertEquals(1, calls.size)
+        assertEquals("web_search", calls[0].call.name)
+    }
 }
