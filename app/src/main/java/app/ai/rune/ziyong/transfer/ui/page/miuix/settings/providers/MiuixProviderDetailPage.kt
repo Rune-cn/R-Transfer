@@ -145,7 +145,7 @@ fun MiuixProviderDetailPage(
                     when (provider.authKind) {
                         AuthKind.NONE -> CustomAccountForm(providerId, viewModel)
                         AuthKind.SMS_CODE -> SmsLoginForm(providerId, viewModel)
-                        AuthKind.COOKIE_PASTE -> CookiePasteForm(providerId, viewModel)
+                        AuthKind.COOKIE_PASTE -> CookieLoginSection(providerId, viewModel)
                         else -> NavigationRow(
                             title = if (provider.authKind == AuthKind.DEVICE_CODE) {
                                 "在浏览器中完成设备授权"
@@ -186,16 +186,65 @@ fun MiuixProviderDetailPage(
 }
 
 /**
- * 粘贴 Cookie 登录（腾讯元宝等 Cookie 会话类供应商）。
+ * Cookie 会话类供应商的登录区（腾讯元宝）。
  *
- * 元宝没有 OAuth 回调：用户在浏览器（电脑/手机均可）登录后，
+ * 首选「内置浏览器登录」：WebView 里正常登录，App 自动抓 Cookie 与设备标识 h38，
+ * 用户不需要开发者工具；手动粘贴 Cookie 作为备选（老版本浏览器 / 无 WebView 环境）。
+ */
+@Composable
+private fun CookieLoginSection(providerId: String, viewModel: AppViewModel) {
+    var showWebLogin by remember { mutableStateOf(false) }
+    var showPaste by remember { mutableStateOf(false) }
+
+    PreferenceActionRow(
+        text = "用内置浏览器登录（推荐）",
+        onClick = { showWebLogin = true },
+    )
+    if (!showPaste) {
+        PreferenceActionRow(
+            text = "手动粘贴 Cookie",
+            onClick = { showPaste = true },
+        )
+    } else {
+        CookiePasteForm(providerId, viewModel)
+    }
+    PreferenceHint(
+        "内置登录会自动读取登录 Cookie 与设备标识 h38（无需开发者工具 F12）；" +
+            "两者必须来自同一个浏览器，否则对话会被上游按设备画像不一致拒绝。",
+    )
+
+    if (showWebLogin) {
+        YuanbaoWebLoginDialog(
+            onDismiss = { showWebLogin = false },
+            onDone = { cookie, h38 ->
+                viewModel.importCredentials(providerId, yuanbaoCredentialJson(cookie, h38))
+                showWebLogin = false
+            },
+        )
+    }
+}
+
+/** 组装元宝账号凭证 JSON（Cookie + 可选 h38）。 */
+private fun yuanbaoCredentialJson(cookie: String, h38: String): String = buildString {
+    append("{\"cookie\":")
+    append(org.json.JSONObject.quote(cookie.trim()))
+    if (h38.isNotBlank()) {
+        append(",\"h38\":")
+        append(org.json.JSONObject.quote(h38.trim()))
+    }
+    append("}")
+}
+
+/**
+ * 手动粘贴 Cookie（备选路径）。
+ *
+ * 元宝没有 OAuth 回调：在浏览器（电脑/手机均可）登录后，
  * 从开发者工具复制请求里的 Cookie 串，粘贴到这里完成导入。
- * 导入成功会立即出现在下方账号列表。
  */
 @Composable
 private fun CookiePasteForm(providerId: String, viewModel: AppViewModel) {
     var cookie by remember { mutableStateOf("") }
-    // h38：可选但强烈建议（上游按设备画像风控，缺失时对话可能被拒）
+    // h38：可选但强烈建议（上游按设备画像风控，缺失或与 Cookie 不同源时会被拒）
     var h38 by remember { mutableStateOf("") }
 
     PreferenceBlock {
@@ -213,29 +262,20 @@ private fun CookiePasteForm(providerId: String, viewModel: AppViewModel) {
         TextField(
             value = h38,
             onValueChange = { h38 = it.trim() },
-            label = "设备标识 h38（可选，强烈建议填；F12 → Application → Local Storage → _qimei_h38）",
+            label = "设备标识 h38（可选，强烈建议；F12 → Application → Local Storage → _qimei_h38）",
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         PreferenceHint(
-            "h38 是设备指纹、长期有效（复制一次即可）。不填也能试，但对话可能被上游按" +
-                "「设备画像不匹配」拒绝（提示「抱歉，我无法回答这个问题」）。",
+            "h38 是设备指纹、长期有效（复制一次即可）。它必须与上面的 Cookie 来自同一个浏览器，" +
+                "否则对话会被上游按「设备画像不一致」拒绝。",
         )
     }
     PreferenceActionRow(
         text = "导入账号",
         enabled = cookie.isNotBlank(),
         onClick = {
-            val payload = buildString {
-                append("{\"cookie\":")
-                append(org.json.JSONObject.quote(cookie.trim()))
-                if (h38.isNotBlank()) {
-                    append(",\"h38\":")
-                    append(org.json.JSONObject.quote(h38))
-                }
-                append("}")
-            }
-            viewModel.importCredentials(providerId, payload)
+            viewModel.importCredentials(providerId, yuanbaoCredentialJson(cookie, h38))
             cookie = ""
             h38 = ""
         },
