@@ -311,7 +311,9 @@ AnimatedVisibility(
   **画像是成对的**：`h38`（`X-HY92`）与 qimei uuid（`X-device-id`/`X-HY93`，自动取自 Cookie 的
   `_qimei_uuid42`）要么都传、要么都不传；只传一半会被判「画像不一致」而拒绝；
 - 头细节与 `yuanbao2api` 保持一致：截断 UA（不含 Chrome 版本段）、`accept-charset: utf-8`、
-  不额外传 `x-instance-id` / `x-commit-tag`（多传会与设备画像不一致）；
+  不额外传 `x-commit-tag`；另按逆向报告补齐 `x-instance-id: 5` 与
+  **`x-traceparent`（每请求唯一，`md5(randhex+5+uuid4)`）**——报告指出复用 traceparent 会触发
+  21007「Answer fetch failed, retrying」；
 - **上游错误提示**（如「服务繁忙，请稍后再试。」「抱歉，我无法回答…」）会以标准
   OpenAI 错误帧（`data: {"error":{...}}`）透传——不再伪装成模型回复，
   这样客户端能正确识别失败，调用记录也能标为失败（区别于以前的「看起来像模型在说服务繁忙」）；

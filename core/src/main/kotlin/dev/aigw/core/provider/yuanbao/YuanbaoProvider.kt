@@ -27,6 +27,7 @@ import dev.aigw.core.util.firstString
 import dev.aigw.core.util.longOrNull
 import dev.aigw.core.util.newCompletionId
 import dev.aigw.core.util.objOrNull
+import dev.aigw.core.util.randomHex
 import dev.aigw.core.util.stringOrNull
 import java.net.HttpURLConnection
 import java.util.UUID
@@ -342,6 +343,10 @@ class YuanbaoProvider(
         put("X-Platform", "win")
         put("X-WebVersion", YuanbaoConstants.X_WEB_VERSION)
         put("Accept-Charset", "utf-8")
+        // 追踪头：报告 §4/§10.4 列出，元宝按「每请求唯一」校验
+        // （复用同一 traceparent 会触发 21007「Answer fetch failed, retrying」）。
+        put("X-Instance-ID", "5")
+        put("X-Traceparent", traceparent())
         // 设备画像必须成对：qimei uuid（X-device-id/X-HY93）与 h38（X-HY92）要么都传、要么都不传。
         // 只传一半会被上游判为「画像不一致」而拒绝对话。
         val deviceId = credential.resolvedDeviceId()
@@ -350,6 +355,19 @@ class YuanbaoProvider(
             put("X-HY93", deviceId)
             put("X-HY92", credential.h38)
         }
+    }
+
+    /**
+     * X-Traceparent：`md5(randhex + instanceId + uuid4)`（报告 §10.4）。
+     * 每次请求都要唯一。
+     */
+    private fun traceparent(): String =
+        md5(randomHex(7) + "5" + java.util.UUID.randomUUID().toString())
+
+    private fun md5(input: String): String {
+        val digest = java.security.MessageDigest.getInstance("MD5")
+            .digest(input.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 
     /** 与实测实现一致的截断 UA（不含 Chrome 版本段）。 */
