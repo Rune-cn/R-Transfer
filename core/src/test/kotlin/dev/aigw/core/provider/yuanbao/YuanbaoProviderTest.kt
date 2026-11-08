@@ -30,15 +30,16 @@ class YuanbaoProviderTest {
 
     @Test
     fun `粘贴凭证 JSON 可导入`() {
-        val raw = """{"cookie":"hy_token=a; hy_user=u1","deviceId":"dev1"}"""
+        val raw = """{"cookie":"hy_token=a; hy_user=u1","deviceId":"dev1","h38":"h38xyz"}"""
         val credential = YuanbaoCredential.fromPasted(raw)!!
         assertEquals("dev1", credential.deviceId)
+        assertEquals("h38xyz", credential.h38)
         assertEquals("u1", credential.parseUserId())
     }
 
     @Test
     fun `凭证 JSON 序列化往返一致`() {
-        val original = YuanbaoCredential(cookie = "hy_token=a; hy_user=u1", deviceId = "d1")
+        val original = YuanbaoCredential(cookie = "hy_token=a; hy_user=u1", deviceId = "d1", h38 = "hxyz")
         val parsed = YuanbaoCredential.parse(original.toJson())!!
         assertEquals(original, parsed)
     }

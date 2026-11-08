@@ -195,6 +195,8 @@ fun MiuixProviderDetailPage(
 @Composable
 private fun CookiePasteForm(providerId: String, viewModel: AppViewModel) {
     var cookie by remember { mutableStateOf("") }
+    // h38：可选但强烈建议（上游按设备画像风控，缺失时对话可能被拒）
+    var h38 by remember { mutableStateOf("") }
 
     PreferenceBlock {
         PreferenceHint(
@@ -208,13 +210,34 @@ private fun CookiePasteForm(providerId: String, viewModel: AppViewModel) {
             minLines = 3,
             modifier = Modifier.fillMaxWidth(),
         )
+        TextField(
+            value = h38,
+            onValueChange = { h38 = it.trim() },
+            label = "设备标识 h38（可选，强烈建议填；F12 → Application → Local Storage → _qimei_h38）",
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PreferenceHint(
+            "h38 是设备指纹、长期有效（复制一次即可）。不填也能试，但对话可能被上游按" +
+                "「设备画像不匹配」拒绝（提示「抱歉，我无法回答这个问题」）。",
+        )
     }
     PreferenceActionRow(
         text = "导入账号",
         enabled = cookie.isNotBlank(),
         onClick = {
-            viewModel.importCredentials(providerId, cookie.trim())
+            val payload = buildString {
+                append("{\"cookie\":")
+                append(org.json.JSONObject.quote(cookie.trim()))
+                if (h38.isNotBlank()) {
+                    append(",\"h38\":")
+                    append(org.json.JSONObject.quote(h38))
+                }
+                append("}")
+            }
+            viewModel.importCredentials(providerId, payload)
             cookie = ""
+            h38 = ""
         },
     )
 }

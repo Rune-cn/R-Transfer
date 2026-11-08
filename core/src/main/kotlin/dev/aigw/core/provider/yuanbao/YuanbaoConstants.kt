@@ -10,7 +10,6 @@ object YuanbaoConstants {
     const val PROVIDER_ID = "yuanbao"
 
     /** 前端版本头（随上游更新；不匹配一般不影响对话）。 */
-    const val X_COMMIT_TAG = "dfd04310"
     const val X_WEB_VERSION = "2.63.0"
 
     /** 默认主助手（元宝）agentId。 */

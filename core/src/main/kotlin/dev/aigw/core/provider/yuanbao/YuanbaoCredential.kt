@@ -18,6 +18,15 @@ data class YuanbaoCredential(
     val cookie: String,
     /** 浏览器设备标识（X-device-id；cookie `_qimei_uuid42`，可为空）。 */
     val deviceId: String = "",
+    /**
+     * qimei 设备标识 h38（浏览器 localStorage `_qimei_h38`，可选）。
+     *
+     * 上游按设备画像做风控：缺失或与其它头不一致时，对话会被拒
+     * （「抱歉，我无法回答这个问题」）。它是**设备指纹、长期有效**，
+     * 从浏览器复制一次即可，不像 USKey 会过期。
+     * 获取方式：浏览器 F12 → Application → Local Storage → `_qimei_h38`。
+     */
+    val h38: String = "",
 ) {
 
     /** 登录用户 id（cookie hy_user）；为空时由初始化流程通过 /api/getuserinfo 补齐。 */
@@ -43,6 +52,7 @@ data class YuanbaoCredential(
     fun toJson(): String = JsonObject().apply {
         addProperty("cookie", cookie)
         addProperty("deviceId", deviceId)
+        if (h38.isNotEmpty()) addProperty("h38", h38)
     }.toString()
 
     companion object {
@@ -54,6 +64,7 @@ data class YuanbaoCredential(
             return YuanbaoCredential(
                 cookie = cookie,
                 deviceId = obj.get("deviceId")?.asString.orEmpty(),
+                h38 = obj.get("h38")?.asString.orEmpty(),
             )
         }
 

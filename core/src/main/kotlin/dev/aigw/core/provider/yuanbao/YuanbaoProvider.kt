@@ -258,7 +258,7 @@ class YuanbaoProvider(
         openAiBody: String,
     ): HttpURLConnection {
         val prompt = buildPrompt(openAiBody)
-        val body = buildChatBody(prompt, agentId, model, cid)
+        val body = buildChatBody(prompt, agentId, model)
         val extra = mapOf(
             "Accept" to "text/event-stream, application/json, text/plain, */*",
             "Content-Type" to "text/plain;charset=UTF-8",
@@ -286,7 +286,7 @@ class YuanbaoProvider(
      * 关键字段：`isTemporary=true`（临时会话）、`plugin`、`supportFunctions`、
      * `offsetOfHour=8`（东八区），以及 `chatModelExtInfo`（模型与搜索开关）。
      */
-    private fun buildChatBody(prompt: String, agentId: String, model: String, cid: String): String {
+    private fun buildChatBody(prompt: String, agentId: String, model: String): String {
         val internetSearchFn = "openInternetSearch"
         val ext = JsonObject().apply {
             addProperty("modelId", model)
@@ -321,32 +321,39 @@ class YuanbaoProvider(
             addProperty("isAtomInput", false)
             addProperty("offsetOfHour", 8)
             addProperty("offsetOfMinute", 0)
-            addProperty("conversationId", cid)
         }.toString()
     }
 
-    /** 浏览器基础请求头（设备组 + Cookie，不含对话特有头）。报告 §4：每个请求都会带这些。 */
-    private fun baseHeaders(credential: YuanbaoCredential): Map<String, String> = mapOf(
-        "User-Agent" to userAgent(),
-        "Cookie" to credential.cookie,
-        "Origin" to host,
-        "X-Language" to "zh-CN",
-        "X-Instance-ID" to "5",
-        "X-Source" to "web",
-        "X-device-id" to credential.deviceId,
-        "X-WebVersion" to YuanbaoConstants.X_WEB_VERSION,
-        "x-commit-tag" to YuanbaoConstants.X_COMMIT_TAG,
-    ).filterValues { it.isNotEmpty() }
-
-    private fun md5(input: String): String {
-        val digest = java.security.MessageDigest.getInstance("MD5")
-            .digest(input.toByteArray(Charsets.UTF_8))
-        return digest.joinToString("") { "%02x".format(it) }
+    /**
+     * 浏览器基础请求头（严格对齐实测可用的 `yuanbao2api`）。
+     *
+     * 注意几个刻意的取舍：
+     * - `User-Agent` 用**截断版**（不含 Chrome 版本段），与实测实现一致；
+     * - 不传 `X-Instance-ID` / `x-commit-tag`（实测实现不传，多传反而与设备画像不一致）；
+     * - `X-device-id` 仅在用户显式提供时传；
+     * - `X-HY92`（qimei h38）与 `X-HY93`（qimei uuid）仅在账号里配置了 h38 时传。
+     */
+    private fun baseHeaders(credential: YuanbaoCredential): Map<String, String> = buildMap {
+        put("User-Agent", userAgent())
+        put("Cookie", credential.cookie)
+        put("Origin", host)
+        put("X-Language", "zh-CN")
+        put("X-Source", "web")
+        put("X-Platform", "win")
+        put("X-WebVersion", YuanbaoConstants.X_WEB_VERSION)
+        put("Accept-Charset", "utf-8")
+        if (credential.deviceId.isNotEmpty()) {
+            put("X-device-id", credential.deviceId)
+            put("X-HY93", credential.deviceId)
+        }
+        if (credential.h38.isNotEmpty()) {
+            put("X-HY92", credential.h38)
+        }
     }
 
+    /** 与实测实现一致的截断 UA（不含 Chrome 版本段）。 */
     private fun userAgent(): String =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
     /**
      * 把 OpenAI `messages` 拼成元宝 prompt（元宝只收纯文本 prompt，多轮靠拼接）。
