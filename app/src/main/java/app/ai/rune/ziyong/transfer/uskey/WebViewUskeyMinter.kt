@@ -395,7 +395,6 @@ class WebViewUskeyMinter(
               function fail(reason){
                 window.__uskayMintResult = {ok:false, reason: reason + (lastErr ? ('; last=' + lastErr) : '')};
               }
-              // 按「方法特征」识别 qimei 导出：不依赖模块 id 与导出名（前端改版后两者都可能变）。
               function pick(v){
                 var list = [v, v && v.default, v && v.QimeiWeb, v && v.default && v.default.QimeiWeb];
                 for (var i = 0; i < list.length; i++) {
@@ -420,45 +419,60 @@ class WebViewUskeyMinter(
                 attempts++;
                 var ts = Date.now();
                 var params = 'h38=' + h38 + '&timestamp=' + ts + '&platform=web';
-                var done = false;
+                var done = false, diag = '';
                 try {
                   window.webpackChunk_N_E.push([[Math.random()], {}, function(req){
                     if (done) return;
-                    // 1) 已知 id（仅作为快速路径；改版后可能已不是 qimei 模块）
+                    // 1) 已知 id（快速路径）
                     try {
                       var M = req(94482);
                       var t = pick(M);
                       if (t && sign(t, ts, params)) { done = true; return; }
-                      if (!t) lastErr = 'id94482:' + (typeof M);
-                    } catch(e) { lastErr = 'mod94482:' + (e && e.message || e); }
-                    // 2) 已加载模块缓存（安全：不执行新模块）
+                      if (!t) diag = 'id94482:' + (typeof M);
+                    } catch(e) { diag = 'mod94482:' + (e && e.message || e); }
+                    // 2) 已加载模块缓存：找 qimei + 收集诊断信息
                     try {
                       var cache = req.c || {};
-                      for (var id in cache) {
-                        var t2 = pick(cache[id] && cache[id].exports);
+                      var cids = Object.keys(cache);
+                      var hits = [];
+                      for (var i = 0; i < cids.length; i++) {
+                        var ex = cache[cids[i]] && cache[cids[i]].exports;
+                        if (!ex) continue;
+                        var t2 = pick(ex);
                         if (t2 && sign(t2, ts, params)) { done = true; return; }
+                        // 诊断：记录名字含 uskey 的导出，便于判断方法是否被改名
+                        if (hits.length < 6) {
+                          var names = [];
+                          try { names = Object.getOwnPropertyNames(ex); } catch(e1) {}
+                          try { if (ex.default) names = names.concat(Object.getOwnPropertyNames(ex.default)); } catch(e2) {}
+                          for (var k = 0; k < names.length; k++) {
+                            if (names[k] && /uskey/i.test(names[k])) hits.push(cids[i] + ':' + names[k]);
+                          }
+                        }
                       }
-                    } catch(e2) { lastErr = 'cache:' + (e2 && e2.message || e2); }
-                    // 3) 模块表扫描（兜底；会执行模块，限量避免副作用过大）
-                    try {
-                      var mods = req.m || {};
-                      var ids = Object.keys(mods);
-                      for (var i = 0; i < ids.length && i < 1200; i++) {
-                        try {
-                          var t3 = pick(req(ids[i]));
-                          if (t3 && sign(t3, ts, params)) { done = true; return; }
-                        } catch(e3) {}
-                      }
-                    } catch(e4) { lastErr = 'scan:' + (e4 && e4.message || e4); }
-                    if (!done && !lastErr) lastErr = 'no-qimei@' + String(location.pathname || '');
+                      diag = 'c=' + cids.length + ',m=' + Object.keys(req.m || {}).length + ',hits=' + (hits.join('|') || 'none');
+                    } catch(e3) { diag = 'cache:' + (e3 && e3.message || e3); }
+                    // 3) 模块表扫描（兜底；限量）
+                    if (!done) {
+                      try {
+                        var mods = req.m || {};
+                        var mids = Object.keys(mods);
+                        for (var j = 0; j < mids.length && j < 1200; j++) {
+                          try {
+                            var t3 = pick(req(mids[j]));
+                            if (t3 && sign(t3, ts, params)) { done = true; return; }
+                          } catch(e4) {}
+                        }
+                      } catch(e5) { if (!diag) diag = 'scan:' + (e5 && e5.message || e5); }
+                    }
+                    if (!done) lastErr = diag || ('no-qimei@' + String(location.pathname || ''));
                   }]);
-                } catch(e5) { lastErr = 'push:' + (e5 && e5.message || e5); }
+                } catch(e6) { lastErr = 'push:' + (e6 && e6.message || e6); }
                 if (!done) {
-                  if (attempts >= 6) fail('mint-failed');
+                  if (attempts >= 5) fail('mint-failed');
                   else setTimeout(tryOnce, 800);
                 }
               }
-              // h38 出现得比 webpack 依赖就绪更早：先等页面 JS 稳定再铸造
               setTimeout(tryOnce, 1200);
             })()
         """.trimIndent()
