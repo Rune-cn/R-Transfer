@@ -312,6 +312,8 @@ AnimatedVisibility(
   与**同源**的 `X-HY92`（用铸造器返回的 h38，避免「画像不一致」）。
   **用户只需在内置浏览器里登录**——登录/导入成功后自动启动铸造器，无额外操作；
   也可填外部 `uskey_browser.py --serve` 的地址替代内置铸造器。
+  > 铸造器 WebView 必须**挂在 Activity 窗口上（1×1 不可见）**：一旦从窗口树 detach
+  > （如登录 Dialog 关闭），部分 ROM 会挂起 JS，表现为「铸造超时」。
 - **设备标识 `h38`（`X-HY92`）**：未接铸造器时用账号里的 h38（F12 →
   Application → Local Storage → `_qimei_h38`），与 qimei uuid（Cookie 的 `_qimei_uuid42`）
   成对下发；接了铸造器则由铸造器提供同源 h38。

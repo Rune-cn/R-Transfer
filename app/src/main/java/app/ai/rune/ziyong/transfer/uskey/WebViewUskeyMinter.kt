@@ -35,6 +35,14 @@ import timber.log.Timber
  */
 class WebViewUskeyMinter(
     context: Context,
+    /**
+     * 提供当前前台 Activity：铸造器要把 WebView 挂在它的窗口上（1×1 不可见）。
+     *
+     * 为什么必须挂窗口：WebView 一旦从窗口树 detach（如登录 Dialog 关闭），
+     * 部分 ROM 会挂起它的 JS 执行——`evaluateJavascript` 回调永不返回，
+     * 表现为「铸造超时」。
+     */
+    private val activityProvider: () -> android.app.Activity? = { null },
 ) {
     private val appContext = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
@@ -109,8 +117,11 @@ class WebViewUskeyMinter(
             }
             return try {
                 future.get(Math.max(1, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
+            } catch (e: java.util.concurrent.TimeoutException) {
+                lastError = "铸造超时：WebView 未响应（可能被系统挂起，或页面尚未就绪）"
+                MintResult.failure(lastError)
             } catch (e: Exception) {
-                lastError = "铸造超时：" + (e.message ?: "未知错误")
+                lastError = "铸造失败：" + (e.message ?: "未知错误")
                 MintResult.failure(lastError)
             }
         }
@@ -150,6 +161,7 @@ class WebViewUskeyMinter(
     fun adopt(view: WebView, cookie: String) {
         synchronized(mintLock) {
             runCatching { view.webViewClient = WebViewClient() }
+            attachToWindow(view)
             webView = view
             pageFinished = true
             pageReady = true
@@ -159,11 +171,26 @@ class WebViewUskeyMinter(
         }
     }
 
+    /**
+     * 把 WebView 挂到当前 Activity 的窗口（1×1 不可见），保证 JS 常驻可执行。
+     * 无前台 Activity 时跳过（后台场景下 evaluateJavascript 可能不回调，由超时兜底报错）。
+     */
+    private fun attachToWindow(view: WebView) {
+        val activity = activityProvider() ?: return
+        handler.post {
+            runCatching {
+                (view.parent as? android.view.ViewGroup)?.removeView(view)
+                activity.addContentView(view, android.view.ViewGroup.LayoutParams(1, 1))
+            }.onFailure { Timber.w("USKey 铸造器挂载窗口失败：${it.message}") }
+        }
+    }
+
     /** 释放 WebView（仅供彻底清理/调试；正常情况常驻）。 */
     fun destroy() {
         synchronized(mintLock) {
             handler.post {
                 webView?.let { view ->
+                    runCatching { (view.parent as? android.view.ViewGroup)?.removeView(view) }
                     view.stopLoading()
                     // 先断开回调引用再 destroy，避免 onPageFinished 回调进死对象
                     view.webViewClient = WebViewClient()
@@ -188,6 +215,7 @@ class WebViewUskeyMinter(
                 val view = webView ?: createWebView()
                 webView = view
                 if (!pageReady) {
+                    attachToWindow(view)
                     injectCookie(cookie, view)
                     // 页面加载失败/超时也放行到 evaluateJavascript：由后续轮询决定成败
                     view.webViewClient = object : WebViewClient() {

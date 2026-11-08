@@ -5,9 +5,11 @@ import app.ai.rune.ziyong.transfer.core.i18n.LocaleManager
 import android.content.Context
 
 import android.app.Application
+import android.app.Activity
 import android.app.NotificationManager
 import android.app.NotificationChannel
 import android.os.Build
+import android.os.Bundle
 import com.kieronquinn.monetcompat.core.MonetCompat
 import app.ai.rune.ziyong.transfer.core.crash.CrashHandler
 import app.ai.rune.ziyong.transfer.core.env.AppConfig
@@ -39,12 +41,34 @@ class App : Application() {
         gateway = holder
     }
 
+    /** 当前处于前台的 Activity（弱引用）。USKey 铸造器需要它来挂一个 1×1 的 WebView。 */
+    @Volatile
+    private var activityRef: java.lang.ref.WeakReference<Activity>? = null
+
+    val currentActivity: Activity? get() = activityRef?.get()
+
+    private val activityCallbacks = object : ActivityLifecycleCallbacks {
+        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+        override fun onActivityStarted(activity: Activity) = Unit
+        override fun onActivityResumed(activity: Activity) {
+            activityRef = java.lang.ref.WeakReference(activity)
+        }
+
+        override fun onActivityPaused(activity: Activity) = Unit
+        override fun onActivityStopped(activity: Activity) = Unit
+        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
+        override fun onActivityDestroyed(activity: Activity) {
+            if (activityRef?.get() === activity) activityRef = null
+        }
+    }
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase))
     }
     override fun onCreate() {
         CrashHandler.init(this)
         super.onCreate()
+        registerActivityLifecycleCallbacks(activityCallbacks)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             HiddenApiBypass.addHiddenApiExemptions("")
