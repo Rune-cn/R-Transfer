@@ -5,6 +5,7 @@ import app.ai.rune.ziyong.transfer.App
 import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.gateway.EncryptedKeyValueStore
 import app.ai.rune.ziyong.transfer.gateway.GatewayHolder
+import app.ai.rune.ziyong.transfer.uskey.UskeyMinterManager
 import dev.aigw.core.gateway.GatewayEngine
 import dev.aigw.core.store.KeyValueStore
 import org.koin.android.ext.koin.androidContext
