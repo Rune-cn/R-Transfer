@@ -395,25 +395,33 @@ class WebViewUskeyMinter(
               function fail(reason){
                 window.__uskayMintResult = {ok:false, reason: reason + (lastErr ? ('; last=' + lastErr) : '')};
               }
-              function pick(v){
-                var list = [v, v && v.default, v && v.QimeiWeb, v && v.default && v.default.QimeiWeb];
-                for (var i = 0; i < list.length; i++) {
-                  var c = list[i];
-                  if (!c) continue;
-                  if (typeof c === 'object' && typeof c.getUSKeySync === 'function') return c;
-                  if (typeof c === 'function' && c.prototype && typeof c.prototype.getUSKeySync === 'function') return c;
+              // 在对象 / 类原型上找「名字含 uskey 的方法」
+              function findUsKeyMethod(obj){
+                if (!obj) return null;
+                var owners = [obj];
+                if (typeof obj === 'function' && obj.prototype) owners.push(obj.prototype);
+                for (var i = 0; i < owners.length; i++) {
+                  var o = owners[i], names = [];
+                  try { names = Object.getOwnPropertyNames(o); } catch(e) {}
+                  for (var j = 0; j < names.length; j++) {
+                    if (/uskey/i.test(names[j]) && typeof o[names[j]] === 'function') {
+                      return { owner: o, host: obj, name: names[j] };
+                    }
+                  }
                 }
                 return null;
               }
-              function sign(target, ts, params){
+              function callIt(found, ts, params){
                 try {
-                  var inst = target;
-                  if (typeof target === 'function') inst = new target({appKey:'', disableDebugger:true});
-                  var s = inst.getUSKeySync('7800385', h38, params);
+                  var receiver = found.owner;
+                  if (found.host && found.owner === found.host.prototype) {
+                    receiver = new found.host({appKey:'', disableDebugger:true});
+                  }
+                  var s = receiver[found.name]('7800385', h38, params);
                   if (!s) { lastErr = 'empty-uskey'; return false; }
                   window.__uskayMintResult = {ok:true, h38:h38, ts:ts, params:params, uskey:encodeURIComponent(s)};
                   return true;
-                } catch(e) { lastErr = 'sig:' + (e && e.message || e); return false; }
+                } catch(e) { lastErr = 'call:' + (e && e.message || e); return false; }
               }
               function tryOnce(){
                 attempts++;
@@ -423,51 +431,51 @@ class WebViewUskeyMinter(
                 try {
                   window.webpackChunk_N_E.push([[Math.random()], {}, function(req){
                     if (done) return;
-                    // 1) 已知 id（快速路径）
+                    // 1) 已知 id 快速路径
                     try {
                       var M = req(94482);
-                      var t = pick(M);
-                      if (t && sign(t, ts, params)) { done = true; return; }
-                      if (!t) diag = 'id94482:' + (typeof M);
+                      var f1 = findUsKeyMethod(M) || (M && M.default && findUsKeyMethod(M.default));
+                      if (f1 && callIt(f1, ts, params)) { done = true; return; }
+                      if (!f1) diag = 'id94482:' + (typeof M);
                     } catch(e) { diag = 'mod94482:' + (e && e.message || e); }
-                    // 2) 已加载模块缓存：找 qimei + 收集诊断信息
-                    try {
-                      var cache = req.c || {};
-                      var cids = Object.keys(cache);
-                      var hits = [];
-                      for (var i = 0; i < cids.length; i++) {
-                        var ex = cache[cids[i]] && cache[cids[i]].exports;
-                        if (!ex) continue;
-                        var t2 = pick(ex);
-                        if (t2 && sign(t2, ts, params)) { done = true; return; }
-                        // 诊断：记录名字含 uskey 的导出，便于判断方法是否被改名
-                        if (hits.length < 6) {
-                          var names = [];
-                          try { names = Object.getOwnPropertyNames(ex); } catch(e1) {}
-                          try { if (ex.default) names = names.concat(Object.getOwnPropertyNames(ex.default)); } catch(e2) {}
-                          for (var k = 0; k < names.length; k++) {
-                            if (names[k] && /uskey/i.test(names[k])) hits.push(cids[i] + ':' + names[k]);
-                          }
-                        }
-                      }
-                      diag = 'c=' + cids.length + ',m=' + Object.keys(req.m || {}).length + ',hits=' + (hits.join('|') || 'none');
-                    } catch(e3) { diag = 'cache:' + (e3 && e3.message || e3); }
-                    // 3) 模块表扫描（兜底；限量）
+                    // 2) 已加载缓存
                     if (!done) {
+                      try {
+                        var cache = req.c || {};
+                        var cids = Object.keys(cache);
+                        for (var i = 0; i < cids.length; i++) {
+                          var ex = cache[cids[i]] && cache[cids[i]].exports;
+                          if (!ex) continue;
+                          var f2 = findUsKeyMethod(ex) || (ex.default && findUsKeyMethod(ex.default));
+                          if (f2 && callIt(f2, ts, params)) { done = true; return; }
+                        }
+                        diag = diag + ';c=' + cids.length;
+                      } catch(e2) { diag = diag + ';cache:' + (e2 && e2.message || e2); }
+                    }
+                    // 3) 按「工厂函数源码里出现 uskey」定位模块（不依赖模块 id / 导出名）
+                    if (!done) {
+                      var srcHits = [];
                       try {
                         var mods = req.m || {};
                         var mids = Object.keys(mods);
-                        for (var j = 0; j < mids.length && j < 1200; j++) {
-                          try {
-                            var t3 = pick(req(mids[j]));
-                            if (t3 && sign(t3, ts, params)) { done = true; return; }
-                          } catch(e4) {}
+                        for (var j = 0; j < mids.length; j++) {
+                          var id2 = mids[j];
+                          var factory = mods[id2];
+                          var src = (typeof factory === 'function') ? String(factory) : '';
+                          if (src.indexOf('uskey') < 0 && src.indexOf('USKey') < 0 && src.indexOf('USKEY') < 0) continue;
+                          srcHits.push(id2);
+                          if (srcHits.length > 40) break;
+                          var ex2;
+                          try { ex2 = req(id2); } catch(e3) { continue; }
+                          var f3 = findUsKeyMethod(ex2) || (ex2 && ex2.default && findUsKeyMethod(ex2.default));
+                          if (f3 && callIt(f3, ts, params)) { done = true; return; }
                         }
-                      } catch(e5) { if (!diag) diag = 'scan:' + (e5 && e5.message || e5); }
+                        diag = diag + ';m=' + mids.length + ';src=' + (srcHits.slice(0, 6).join(',') || 'none');
+                      } catch(e4) { diag = diag + ';scan:' + (e4 && e4.message || e4); }
                     }
                     if (!done) lastErr = diag || ('no-qimei@' + String(location.pathname || ''));
                   }]);
-                } catch(e6) { lastErr = 'push:' + (e6 && e6.message || e6); }
+                } catch(e5) { lastErr = 'push:' + (e5 && e5.message || e5); }
                 if (!done) {
                   if (attempts >= 5) fail('mint-failed');
                   else setTimeout(tryOnce, 800);
