@@ -341,6 +341,22 @@ AnimatedVisibility(
 
 ---
 
+### 调研过但未接入的上游
+
+以下网页版上游已做过**完整技术调研**（协议、鉴权、阻断点、参考实现），但决定暂不接入。
+细节见 [UPSTREAM_RESEARCH.md](UPSTREAM_RESEARCH.md)：
+
+| 上游 | 通道 | 主要门槛 | 结论 |
+|---|---|---|---|
+| **Grok 网页版**（grok.com） | WebSocket `wss://grok.com/ws/mgw/` | 需 `x-statsig-id` 签名（依赖外部签名服务）；`:core` 无 WebSocket 客户端；Cloudflare 风控 | 工程量与风险都偏高，暂不做 |
+| **通义千问网页版**（chat.qwen.ai） | HTTP + SSE（`/api/v2/chat/completions`） | Cookie 换 token；对话端点有**阿里云 WAF**（数据中心 IP 必被滑块拦截） | 协议已完全还原，需「内置 WebView 登录」才可行，暂不做 |
+
+> 两者共同点：**协议本身都不难，难在环境风控**。将来若要接，直接复用腾讯元宝那套
+> 「内置 WebView 登录 + 本地凭证」（见 §3 的 `uskey/`），并在真机住宅网络下验证 WAF 是否放行
+> ——这是沙箱里无法判断的一步。
+
+---
+
 ## 9. 已知问题
 
 1. **`git push` 在部分环境走不通**（`Failed to connect to github.com port 443`），

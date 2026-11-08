@@ -41,6 +41,10 @@ miuix UI 底部 5 Tab（首页 / 供应商 / 模型 / 调用记录 / 设置）�
 7. **更新下载应用内化**（可选）：应用内下载 + 进度 + 安装（`ApkInstaller` 已有，缺 UI 进度）
 8. **日志持久化**（可选）：`cacheDir` 会被系统清缓存 → 评估迁 `filesDir`（`util/timber/FileLoggingTree.kt`、`LogViewModel.kt`、`core/crash/CrashHandler.kt`）
 
+9. **Grok / 千问网页版**：已完整调研但未接入（协议、阻断点、参考实现、落地步骤见
+   [UPSTREAM_RESEARCH.md](UPSTREAM_RESEARCH.md)）。若将来要接，优先千问（纯 HTTP+SSE，无 WebSocket），
+   并必须走「内置 WebView 登录」过 WAF
+
 ## 4. 铁律（仓库强制，见 AGENTS.md）
 
 1. **文档同步铁律（每次修改都要更新文档）**——任何代码/资源/构建/配置改动，必须在本提交内同步更新：
