@@ -2,6 +2,7 @@ package dev.aigw.core.provider.yuanbao
 
 import dev.aigw.core.provider.AuthKind
 import dev.aigw.core.provider.ProviderAccount
+import dev.aigw.core.provider.ProviderHooks
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -28,13 +29,11 @@ class YuanbaoProviderTest {
     }
 
     @Test
-    fun `粘贴凭证 JSON 可导入（含 uskey 配置）`() {
-        val raw = """{"cookie":"hy_token=a; hy_user=u1","deviceId":"dev1","uskey":{"serviceUrl":"http://127.0.0.1:8787/uskey","h38":"h38x","uskey":"usk","timestamp":123,"params":"p=1"}}"""
+    fun `粘贴凭证 JSON 可导入`() {
+        val raw = """{"cookie":"hy_token=a; hy_user=u1","deviceId":"dev1"}"""
         val credential = YuanbaoCredential.fromPasted(raw)!!
         assertEquals("dev1", credential.deviceId)
-        assertNotNull(credential.uskey)
-        assertEquals("http://127.0.0.1:8787/uskey", credential.uskey!!.serviceUrl)
-        assertTrue(credential.uskey!!.hasStatic())
+        assertEquals("u1", credential.parseUserId())
     }
 
     @Test
@@ -56,7 +55,7 @@ class YuanbaoProviderTest {
     @Test
     fun `importCredentials 从 Cookie 建立账号`() {
         // host 指向本地不可达端口：连接立即被拒，测试不依赖外网也不挂起
-        val provider = YuanbaoProvider(hooks = dev.aigw.core.provider.ProviderHooks(), host = "http://127.0.0.1:1")
+        val provider = YuanbaoProvider(hooks = ProviderHooks(), host = "http://127.0.0.1:1")
         val account = provider.importCredentials(cookie)
         assertNotNull(account)
         assertEquals("yuanbao", account.providerId)
@@ -76,8 +75,6 @@ class YuanbaoProviderTest {
         assertEquals("", view.error)
     }
 
-    // ------------------------------------------------------------------ 模型解析
-
     @Test
     fun `模型列表解析不抛异常`() {
         // 有账号但连不上网：应返回空列表+错误，而不是抛异常
@@ -92,7 +89,7 @@ class YuanbaoProviderTest {
         val provider = YuanbaoProvider()
         assertEquals("hunyuan_gpt_175B_0404", provider.resolveModel("yuanbao/hunyuan_gpt_175B_0404"))
         assertEquals("deep_seek_v3", provider.resolveModel("deep_seek_v3"))
-        assertEquals("naQivTmsDa", provider.resolveModel(""))
+        assertEquals("deep_seek_v3", provider.resolveModel(""))
     }
 
     // ------------------------------------------------------------------ 错误分类
@@ -155,16 +152,12 @@ class YuanbaoProviderTest {
         assertEquals(emptyList(), translator.close())
     }
 
-    // ------------------------------------------------------------------ 静态签名头
+    // ------------------------------------------------------------------ 请求
 
     @Test
     fun `openChat 无网络时快速失败而不是挂起`() {
-        val now = 1_700_000_000_000L
-        val provider = YuanbaoProvider(nowMillis = { now }, host = "http://127.0.0.1:1")
-        val credential = YuanbaoCredential(
-            cookie = cookie,
-            uskey = UskeyConfig(uskey = "ush38", h38 = "h38abc", timestamp = now - 60_000),
-        )
+        val provider = YuanbaoProvider(host = "http://127.0.0.1:1")
+        val credential = YuanbaoCredential(cookie = cookie)
         val result = provider.openChat(
             ProviderAccount("yuanbao", "user123", "元宝", credential.toJson()),
             """{"model":"m1","stream":true,"messages":[{"role":"user","content":"hi"}]}""",
@@ -173,15 +166,14 @@ class YuanbaoProviderTest {
     }
 
     @Test
-    fun `请求带 tools 时明确拒绝且不消耗 USKey`() {
-        // tools 检查在创建会话之前：即使没有 USKey 也不应报「缺少 USKey」，而是报「不支持工具」
-        val provider = YuanbaoProvider(hooks = dev.aigw.core.provider.ProviderHooks(), host = "http://127.0.0.1:1")
+    fun `请求带 tools 时明确拒绝`() {
+        // tools 检查在发请求之前：不依赖网络即可断言拒绝语义
+        val provider = YuanbaoProvider(hooks = ProviderHooks(), host = "http://127.0.0.1:1")
         val credential = YuanbaoCredential(cookie = cookie)
         val result = provider.openChat(
             ProviderAccount("yuanbao", "user123", "元宝", credential.toJson()),
             """{"model":"m1","stream":false,"tools":[{"type":"function","function":{"name":"search"}}],"messages":[{"role":"user","content":"hi"}]}""",
         )
-        // StreamFailureChatCall: status=0, failure.kind=CLIENT, 消息包含「不支持工具调用」
         assertEquals(0, result.status)
         val failure = result.failure
         assertNotNull(failure)
@@ -191,7 +183,7 @@ class YuanbaoProviderTest {
 
     @Test
     fun `tool_choice 单独出现也视为工具请求`() {
-        val provider = YuanbaoProvider(hooks = dev.aigw.core.provider.ProviderHooks(), host = "http://127.0.0.1:1")
+        val provider = YuanbaoProvider(hooks = ProviderHooks(), host = "http://127.0.0.1:1")
         val credential = YuanbaoCredential(cookie = cookie)
         val result = provider.openChat(
             ProviderAccount("yuanbao", "user123", "元宝", credential.toJson()),

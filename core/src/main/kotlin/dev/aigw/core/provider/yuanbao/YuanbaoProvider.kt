@@ -27,34 +27,27 @@ import dev.aigw.core.util.firstString
 import dev.aigw.core.util.longOrNull
 import dev.aigw.core.util.newCompletionId
 import dev.aigw.core.util.objOrNull
-import dev.aigw.core.util.randomHex
 import dev.aigw.core.util.stringOrNull
 import java.net.HttpURLConnection
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
+import java.util.UUID
 
 /**
- * 腾讯元宝（`yuanbao.tencent.com`）Web 端供应商。
+ * 腾讯元宝（`yuanbao.tencent.com`）网页版供应商。
  *
- * 协议来自对前端 JS 的逆向（2026-11-07 实测，详见星球/文档 `yuanbao-re` 包）：
- * - 鉴权：Cookie 会话（`hy_token` + `hy_user`），浏览器登录后复制导入；
- * - 查询接口（用户信息 / 模型 / 额度 / 会话）只需 Cookie；
- * - 对话 `POST /api/chat/{cid}` 是 SSE 流，需要 **qimei USKey 签名三件套**
- *   （`X-Timestamp` / `X-Bus-Params-Md5` / `X-Uskey`，见 [UskeySigner]）。
+ * 协议要点（对照实测可用的开源实现 `10020099/yuanbao2api`）：
+ * - 鉴权只需要 **Cookie 会话**（`hy_token` + `hy_user`），浏览器登录后复制导入；
+ * - 对话 `POST /api/chat/{conversationId}` 是 SSE 流；**`conversationId` 本地生成 UUID**，
+ *   请求体带 `isTemporary: true`（临时会话，不在元宝界面留下记录）；
+ * - **不需要 qimei USKey 签名**（早期逆向结论有误：那条路依赖浏览器环境且不稳定）。
+ *   只需要基础浏览器头 + `x-agentid: {agentId}/{conversationId}`。
  *
- * USKey 只能由浏览器环境铸造：「本地 USKey 铸造服务」或浏览器抓包静态签名。
- * 两者都没配时**不发起对话**（上游会在被拒时照样扣配额，必须避免白扣），
- * 返回带明确指引的错误。查询类能力不受影响。
+ * 不支持 OpenAI function calling：客户端带 `tools` 时明确拒绝（见 [openChat]），
+ * 避免客户端收到「没有 tool_calls 的回复」后自行猜测。元宝的联网搜索由上游自行执行。
  */
 class YuanbaoProvider(
     private val hooks: ProviderHooks = ProviderHooks(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val host: String = YuanbaoConstants.API_BASE,
-    /**
-     * USKey 铸造服务地址（如 `http://127.0.0.1:8787/uskey`，处理 `{ok,h38,ts,params,uskey}`）。
-     * 也可通过账号凭证里的 [UskeyConfig.serviceUrl] 覆盖（换设备/换浏览器时）。
-     */
-    private val defaultUskeyServiceUrl: String = "",
 ) : Provider {
 
     override val id: String = YuanbaoConstants.PROVIDER_ID
@@ -91,9 +84,8 @@ class YuanbaoProvider(
 
     override fun resolveModel(requested: String): String {
         val model = requested.trim()
-        // 客户端按 prefix/model 传；prefix 由网关切掉，这里可能拿到 `元宝/model` 形式
         val normalized = if (model.startsWith("$id/")) model.removePrefix("$id/") else model
-        return normalized.ifEmpty { YuanbaoConstants.DEFAULT_AGENT_ID }
+        return normalized.ifEmpty { YuanbaoConstants.DEFAULT_MODEL_ID }
     }
 
     override fun isInternalModel(id: String): Boolean = false
@@ -107,36 +99,23 @@ class YuanbaoProvider(
         val agentId = YuanbaoConstants.DEFAULT_AGENT_ID
         val model = resolveModel(requestedModelOf(openAiBody))
 
-        // 元宝上游不支持 OpenAI function calling（前端只暴露联网搜索开关）。
-        // 客户端（Trae / MCP 客户端）发来的 tools 会得到明确拒绝，而不是收到
-        // 「没有 tool_calls 的回复」后让客户端猜「模型未开启工具调用」。
+        // 元宝网页版不支持 OpenAI function calling。
         if (buildChatUsesTools(openAiBody)) {
             hooks.onLog("元宝：客户端请求包含 tools，但上游不支持 function calling")
             return StreamFailureChatCall(
                 0,
                 UpstreamError(
                     ErrorKind.CLIENT,
-                    "元宝上游不支持工具调用（OpenAI function calling）：请关闭客户端的工具/MCP/搜索功能后重试，" +
+                    "元宝网页版不支持工具调用（OpenAI function calling）：请关闭客户端的工具/MCP/搜索功能后重试，" +
                         "或改用支持工具的模型。元宝内置的联网搜索由上游自动执行，无需客户端工具。",
                 ),
             )
         }
 
-        // 创建会话需要 USKey；没有签名配置时直接拒绝，避免上游扣费。
-        // 用「流内业务错误（CLIENT）」语义：网关立即中断并原样把原因返回给客户端，
-        // 不换号、不重试、不计熔断——这是配置问题，不是账号或供应商故障。
-        val cid = try {
-            createConversation(credential, agentId)
-        } catch (e: UskeyRequiredException) {
-            return StreamFailureChatCall(0, UpstreamError(ErrorKind.CLIENT, e.message ?: "缺少 USKey"))
-        } catch (e: Exception) {
-            return FailedChatCall(0, e.message ?: "创建会话失败")
-        }
-
+        // 会话 ID 本地生成（临时会话），不调用创建会话接口。
+        val cid = UUID.randomUUID().toString()
         val conn = try {
             openChatConnection(credential, cid, agentId, model, openAiBody)
-        } catch (e: UskeyRequiredException) {
-            return StreamFailureChatCall(0, UpstreamError(ErrorKind.CLIENT, e.message ?: "缺少 USKey"))
         } catch (e: Exception) {
             return FailedChatCall(0, e.message ?: "连接失败")
         }
@@ -256,8 +235,6 @@ class YuanbaoProvider(
 
     // ------------------------------------------------------------------ 网络
 
-    private class UskeyRequiredException(message: String) : Exception(message)
-
     /** 查询类请求：只带 Cookie 与浏览器头。 */
     private fun getJson(path: String, credential: YuanbaoCredential): Pair<Int, String> {
         val conn = HttpSupport.open(
@@ -273,35 +250,6 @@ class YuanbaoProvider(
         return status to body
     }
 
-    /** 创建会话。返回 conversationId。 */
-    private fun createConversation(credential: YuanbaoCredential, agentId: String): String {
-        val body = JsonObject().apply { addProperty("agentId", agentId) }.toString()
-        val signed = signedHeaders(credential, "/api/user/agent/conversation/create", body)
-        val conn = HttpSupport.open(
-            url = "$host/api/user/agent/conversation/create",
-            method = "POST",
-            headers = baseHeaders(credential) + signed,
-            body = body,
-            connectTimeoutMs = 15_000,
-            readTimeoutMs = 30_000,
-        )
-        try {
-            val status = conn.responseCode
-            val text = HttpSupport.readBody(conn)
-            if (status !in 200..299) {
-                throw IllegalStateException("创建会话失败（HTTP $status）：${text.take(200)}")
-            }
-            val cid = runCatching {
-                val obj = JsonParser.parseString(text).asJsonObject
-                obj.stringOrNull("id") ?: obj.objOrNull("data")?.stringOrNull("id").orEmpty()
-            }.getOrDefault("")
-            if (cid.isEmpty()) throw IllegalStateException("创建会话响应缺少 id：${text.take(200)}")
-            return cid
-        } finally {
-            conn.disconnect()
-        }
-    }
-
     private fun openChatConnection(
         credential: YuanbaoCredential,
         cid: String,
@@ -309,48 +257,53 @@ class YuanbaoProvider(
         model: String,
         openAiBody: String,
     ): HttpURLConnection {
-        val prompt = extractPrompt(openAiBody)
+        val prompt = buildPrompt(openAiBody)
         val body = buildChatBody(prompt, agentId, model, cid)
-        val signed = signedHeaders(credential, "/api/chat/$cid", body)
         val extra = mapOf(
-            "Accept" to "text/event-stream",
+            "Accept" to "text/event-stream, application/json, text/plain, */*",
             "Content-Type" to "text/plain;charset=UTF-8",
-            "X-AgentID" to agentId,
-            "X-Traceparent" to traceparent(),
-            "X-Event-Input-Type" to "11",
-            "X-Input-Type" to "text",
+            // 关键：x-agentid 必须是 agentId/cid 两段式（对照 yuanbao2api）
+            "X-AgentID" to "$agentId/$cid",
+            "X-Timestamp" to nowMillis().toString(),
+            "X-Requested-With" to "XMLHttpRequest",
+            "X-Platform" to "win",
+            "X-Source" to "web",
+            "Referer" to "$host/chat/$agentId/$cid",
         )
         return HttpSupport.open(
             url = "$host/api/chat/$cid",
             method = "POST",
-            headers = baseHeaders(credential) + signed + extra,
+            headers = baseHeaders(credential) + extra,
             body = body,
             connectTimeoutMs = 15_000,
             readTimeoutMs = 120_000,
         )
     }
 
+    /**
+     * 元宝请求体（对照 `yuanbao2api` 实测结构）。
+     *
+     * 关键字段：`isTemporary=true`（临时会话）、`plugin`、`supportFunctions`、
+     * `offsetOfHour=8`（东八区），以及 `chatModelExtInfo`（模型与搜索开关）。
+     */
     private fun buildChatBody(prompt: String, agentId: String, model: String, cid: String): String {
+        val internetSearchFn = "openInternetSearch"
         val ext = JsonObject().apply {
             addProperty("modelId", model)
             addProperty("subModelId", "")
-            add("supportFunctions", JsonObject().apply { addProperty("internetSearch", "") })
-            addProperty("internetSearch", "autoInternetSearch")
+            add("supportFunctions", JsonObject().apply { addProperty("internetSearch", internetSearchFn) })
         }
         return JsonObject().apply {
             addProperty("model", "gpt_175B_0404")
             addProperty("prompt", prompt)
-            addProperty("plugin", "")
-            addProperty("displayPrompt", prompt)
+            addProperty("plugin", "Adaptive")
+            addProperty("displayPrompt", prompt.take(2000))
             addProperty("displayPromptType", 1)
             addProperty("agentId", agentId)
-            addProperty("isTemporary", false)
             addProperty("projectId", "")
+            addProperty("isTemporary", true)
             addProperty("chatModelId", model)
-            add("supportFunctions", JsonArray().apply {
-                add("openAutoSearchSwitch")
-                add("autoInternetSearch")
-            })
+            add("supportFunctions", JsonArray().apply { add(internetSearchFn) })
             addProperty("docOpenid", "")
             add("options", JsonObject().apply {
                 add("imageIntention", JsonObject().apply {
@@ -366,124 +319,28 @@ class YuanbaoProvider(
             addProperty("version", "v2")
             add("extReportParams", com.google.gson.JsonNull.INSTANCE)
             addProperty("isAtomInput", false)
-            addProperty("offsetOfHour", 0)
+            addProperty("offsetOfHour", 8)
+            addProperty("offsetOfMinute", 0)
             addProperty("conversationId", cid)
         }.toString()
     }
 
-    /** 浏览器基础请求头（设备组 + Cookie，不含签名）。报告 §4：每个请求都会带这些。 */
+    /** 浏览器基础请求头（设备组 + Cookie，不含对话特有头）。报告 §4：每个请求都会带这些。 */
     private fun baseHeaders(credential: YuanbaoCredential): Map<String, String> = mapOf(
         "User-Agent" to userAgent(),
         "Cookie" to credential.cookie,
         "Origin" to host,
-        "Referer" to "$host/",
+        "X-Language" to "zh-CN",
         "X-Instance-ID" to "5",
         "X-Source" to "web",
-        "X-Language" to "zh-CN",
         "X-device-id" to credential.deviceId,
-        "X-HY93" to credential.deviceId,
-        "X-Platform" to "web",
-        "x-commit-tag" to YuanbaoConstants.X_COMMIT_TAG,
         "X-WebVersion" to YuanbaoConstants.X_WEB_VERSION,
+        "x-commit-tag" to YuanbaoConstants.X_COMMIT_TAG,
     ).filterValues { it.isNotEmpty() }
 
-    /**
-     * 需要签名的路径补三件套。签名来源优先级：
-     * 1. 账号凭证里的静态签名（浏览器抓包）；
-     * 2. 铸造服务（账号级 [UskeyConfig.serviceUrl] 或 provider 默认地址）。
-     * 都没有 → 抛异常（调用方转 FailedChatCall，不发起请求，避免扣费）。
-     */
-    private fun signedHeaders(credential: YuanbaoCredential, path: String, body: String): Map<String, String> {
-        if (YuanbaoConstants.USKEY_PATHS.none { path.contains(it) }) return emptyMap()
-        val config = credential.uskey
-
-        // 1) 静态签名可用且未过期（5 分钟窗口）
-        if (config != null && config.hasStatic() &&
-            (config.timestamp == 0L || nowMillis() - config.timestamp < 5 * 60 * 1000L)
-        ) {
-            return staticHeaders(config, credential)
-        }
-
-        // 2) 铸造服务
-        val service = config?.serviceUrl?.takeIf { it.isNotEmpty() } ?: defaultUskeyServiceUrl
-        if (service.isNotEmpty()) {
-            val minted = try {
-                mintFromService(service)
-            } catch (e: Exception) {
-                throw UskeyRequiredException(buildString {
-                    append("USKey 铸造服务不可用（$service）：")
-                    append(e.message ?: "未知错误")
-                    // 手机上 127.0.0.1 指向手机自身：服务跑在电脑上时手机连不上，是最常见的坑
-                    if (service.contains("127.0.0.1") || service.contains("localhost")) {
-                        append("。注意：127.0.0.1 在手机上是手机自己，连不到电脑；")
-                        append("请把服务地址改成电脑的局域网 IP（如 http://192.168.x.x:8787/uskey）")
-                    }
-                })
-            }
-            // X-HY93（qimei uuid）：铸造服务没给时回退设备 id
-            return if (minted.containsKey("X-HY93")) minted
-            else minted + mapOf("X-HY93" to credential.deviceId)
-        }
-
-        throw UskeyRequiredException(
-            "元宝对话需要 qimei USKey（浏览器环境铸造，短暂有效）。请配置本地 USKey 铸造服务" +
-                "（uskey_browser.py --serve，地址填到账号设置），或在浏览器抓取 X-Uskey 静态填入。",
-        )
-    }
-
-    private fun staticHeaders(config: UskeyConfig, credential: YuanbaoCredential): Map<String, String> {
-        val params = config.params.ifEmpty { "h38=${config.h38}&timestamp=${config.timestamp}&platform=web" }
-        return mapOf(
-            "X-HY92" to config.h38,
-            "X-HY93" to credential.deviceId,
-            "X-Timestamp" to (if (config.timestamp > 0) config.timestamp else nowMillis()).toString(),
-            "X-Bus-Params-Md5" to md5(params),
-            "X-Uskey" to config.uskey,
-        ).filterValues { it.isNotEmpty() }
-    }
-
-    /** 调用本地铸造服务（与 Python `uskey_browser.py --serve` 的输出契约一致）。 */
-    private fun mintFromService(serviceUrl: String): Map<String, String> {
-        val conn = HttpSupport.open(
-            url = serviceUrl,
-            method = "GET",
-            headers = mapOf("Accept" to "application/json"),
-            connectTimeoutMs = 15_000,
-            readTimeoutMs = 90_000,
-        )
-        val status = conn.responseCode
-        val text = HttpSupport.readBody(conn)
-        conn.disconnect()
-        if (status !in 200..299) throw IllegalStateException("服务返回 HTTP $status")
-        val obj = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull()
-            ?: throw IllegalStateException("服务返回非 JSON")
-        if (obj.boolOrNull("ok") != true) throw IllegalStateException("服务返回 ok=false：${text.take(200)}")
-        val h38 = obj.stringOrNull("h38").orEmpty()
-        val ts = obj.longOrNull("ts") ?: nowMillis()
-        val params = obj.stringOrNull("params").orEmpty()
-            .ifEmpty { "h38=$h38&timestamp=$ts&platform=web" }
-        val uskey = obj.stringOrNull("uskey").orEmpty()
-        if (uskey.isEmpty() || h38.isEmpty()) throw IllegalStateException("服务响应缺少 uskey/h38")
-        return mapOf(
-            "X-HY92" to h38,
-            "X-HY93" to (obj.stringOrNull("h93") ?: ""),
-            "X-Timestamp" to ts.toString(),
-            "X-Bus-Params-Md5" to md5(params),
-            "X-Uskey" to uskey,
-        ).filterValues { it.isNotEmpty() }
-    }
-
-    /**
-     * X-Traceparent：`md5(randhex + instanceId + uuid4)`（前端模块 48376 规则）。
-     * 每请求唯一——同一 traceparent 复用会导致 21007「Answer fetch failed, retrying」。
-     */
-    private fun traceparent(): String {
-        val instanceId = "5"
-        return md5("${randomHex(7)}$instanceId${randomHex(16)}")
-    }
-
     private fun md5(input: String): String {
-        val digest = MessageDigest.getInstance("MD5").digest(input.toByteArray(StandardCharsets.UTF_8))
+        val digest = java.security.MessageDigest.getInstance("MD5")
+            .digest(input.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
 
@@ -491,21 +348,32 @@ class YuanbaoProvider(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-    /** 从 OpenAI 请求体提取用户 prompt（首条 user 消息）。 */
-    private fun extractPrompt(openAiBody: String): String {
+    /**
+     * 把 OpenAI `messages` 拼成元宝 prompt（元宝只收纯文本 prompt，多轮靠拼接）。
+     *
+     * 与原实现只取最后一条 user 消息不同：这里保留 system 与历史轮次，
+     * 否则多轮对话会丢上下文。
+     */
+    private fun buildPrompt(openAiBody: String): String {
         val obj = runCatching { JsonParser.parseString(openAiBody).asJsonObject }.getOrNull()
             ?: return openAiBody
         val messages = obj.arrayOrNull("messages") ?: return openAiBody
+        val sb = StringBuilder()
         for (element in messages) {
             val message = element.asObjectOrNull() ?: continue
-            if (message.stringOrNull("role") == "user") {
-                return message.stringOrNull("content").orEmpty()
+            val role = message.stringOrNull("role").orEmpty()
+            val content = message.stringOrNull("content").orEmpty()
+            if (content.isEmpty()) continue
+            when (role) {
+                "system" -> sb.append("系统指示：").append(content).append("\n\n")
+                "assistant" -> sb.append("（此前回复）").append(content).append("\n\n")
+                else -> sb.append(content).append("\n\n")
             }
         }
-        return openAiBody
+        return sb.toString().trim().ifEmpty { openAiBody }
     }
 
-    /** 请求体是否带 tools / tool_choice（元宝不支持，需降级并提示）。 */
+    /** 请求体是否带 tools / tool_choice（元宝网页版不支持，需明确拒绝）。 */
     private fun buildChatUsesTools(openAiBody: String): Boolean {
         val obj = runCatching { JsonParser.parseString(openAiBody).asJsonObject }.getOrNull() ?: return false
         return obj.arrayOrNull("tools")?.size()?.let { it > 0 } == true || obj.has("tool_choice")
@@ -513,8 +381,8 @@ class YuanbaoProvider(
 
     private fun JsonObject.has(name: String): Boolean = get(name) != null && !get(name).isJsonNull
 
+    /** 最新模型列表接口（含 subModelList / supportFunctions）；旧 /api/models 作兜底。 */
     private fun fetchModels(credential: YuanbaoCredential, agentId: String): List<ProviderModel> {
-        // 最新模型列表接口（含 subModelList / supportFunctions）；旧 /api/models 作兜底
         val (status, text) = getJson("/api/agent/model/list?agentId=$agentId", credential)
         if (status !in 200..299) return emptyList()
         val obj = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull() ?: return emptyList()
@@ -525,11 +393,8 @@ class YuanbaoProvider(
                 val item = element.asObjectOrNull() ?: continue
                 val id = item.firstString("chatModelId", "modelId", "id")
                 if (id.isEmpty()) continue
-                // 界面展示名；能力标签从 extra 传出（前端各字段口径不齐，尽力而为）
                 val name = item.firstString("modelName", "name", "title", "chatModelName").ifEmpty { id }
-                val backendModel = item.firstString("model", "backendModel").ifEmpty { id }
                 val extra = buildMap {
-                    if (backendModel.isNotEmpty() && backendModel != id) put("backend", backendModel)
                     if (item.objOrNull("supportFunctions")?.has("internetSearch") == true) {
                         put("search", "1")
                     }
@@ -545,9 +410,6 @@ class YuanbaoProvider(
         val obj = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull() ?: return text.take(200)
         return obj.firstString("message", "msg", "error", "errorMessage").ifEmpty { text.take(200) }
     }
-
-    private fun JsonObject.boolOrNull(name: String): Boolean? =
-        get(name)?.takeIf { it.isJsonPrimitive }?.asBoolean
 
     private fun JsonElement?.asObjectOrNull(): JsonObject? =
         this?.takeIf { it.isJsonObject }?.asJsonObject

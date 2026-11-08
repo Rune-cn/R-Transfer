@@ -335,7 +335,6 @@ private fun AccountBlock(
     viewModel: AppViewModel,
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
-    var showUskey by remember { mutableStateOf(false) }
 
     SwitchRow(
         title = account.nickname.ifEmpty { account.uid },
@@ -354,20 +353,6 @@ private fun AccountBlock(
         onCheckedChange = { viewModel.setAccountEnabled(provider.id, account.uid, it) },
     )
 
-    // 元宝：对话需要 qimei USKey，配置入口放在账号级（支持铸造服务 URL / 静态签名）
-    if (provider.authKind == AuthKind.COOKIE_PASTE) {
-        val uskey = remember(account.uid) { viewModel.yuanbaoUskeyOf(provider.id, account.uid) }
-        NavigationRow(
-            title = "USKey 签名（对话必需）",
-            summary = when {
-                uskey.serviceUrl.isNotEmpty() -> "铸造服务：${uskey.serviceUrl}"
-                uskey.hasStatic() -> "静态签名已配置（${if (uskey.timestamp > 0) "约 ${TimeFormat.format(uskey.timestamp)}" else "未记时间"}）"
-                else -> "未配置：对话会被拒绝（避免白扣额度），点此配置"
-            },
-            onClick = { showUskey = true },
-        )
-    }
-
     PreferenceButtonRow {
         if (ProviderCapability.CREDIT_REFRESH in provider.capabilities) {
             TextButton(
@@ -380,19 +365,6 @@ private fun AccountBlock(
             text = "删除",
             onClick = { confirmDelete = true },
             modifier = Modifier.weight(1f),
-        )
-    }
-
-    if (showUskey) {
-        YuanbaoUskeyDialog(
-            account = account,
-            initial = viewModel.yuanbaoUskeyOf(provider.id, account.uid),
-            viewModel = viewModel,
-            onDismiss = { showUskey = false },
-            onSave = { config ->
-                viewModel.saveYuanbaoUskey(provider.id, account.uid, config)
-                showUskey = false
-            },
         )
     }
 
@@ -423,144 +395,3 @@ private fun AccountBlock(
     }
 }
 
-/**
- * 元宝 USKey 配置对话框。
- *
- * 两种来源二选一（同时填时铸造服务优先）：
- * 1. **铸造服务 URL**：`uskey_browser.py --serve <port>` 的地址（如
- *    `http://127.0.0.1:8787/uskey`），每次对话前自动取新鲜签名——推荐，长期有效；
- * 2. **静态签名**：浏览器抓包 `/api/chat` 请求的 X-Uskey / X-HY92(h38) /
- *    X-Timestamp / 参数串，短暂有效（约 5 分钟），仅用于验证跑通。
- *
- * 「清除配置」= 恢复未配置：对话会被拒绝（避免被上游拒绝时白扣额度）。
- */
-@Composable
-private fun YuanbaoUskeyDialog(
-    account: AccountStatus,
-    initial: dev.aigw.core.provider.yuanbao.UskeyConfig,
-    viewModel: AppViewModel,
-    onDismiss: () -> Unit,
-    onSave: (dev.aigw.core.provider.yuanbao.UskeyConfig) -> Unit,
-) {
-    var serviceUrl by remember(initial.serviceUrl) { mutableStateOf(initial.serviceUrl) }
-    var uskey by remember(initial.uskey) { mutableStateOf(initial.uskey) }
-    var h38 by remember(initial.h38) { mutableStateOf(initial.h38) }
-    var timestamp by remember(initial.timestamp) {
-        mutableStateOf(if (initial.timestamp > 0) initial.timestamp.toString() else "")
-    }
-    var params by remember(initial.params) { mutableStateOf(initial.params) }
-    var builtinState by remember { mutableStateOf("") } // "" 空闲 / "starting" 启动中 / "ok" 成功 / "error"
-    var builtinError by remember { mutableStateOf("") }
-
-    WindowDialog(
-        show = true,
-        title = "配置 USKey 签名（${account.nickname.ifEmpty { account.uid }}）",
-        onDismissRequest = onDismiss,
-    ) {
-        PreferenceCard {
-            PreferenceHint(
-                "元宝对话需要 qimei USKey（浏览器环境铸造，短暂有效）。" +
-                    "可一键使用「内置铸造器」（本机 WebView 铸造，无需电脑），" +
-                    "或手动填铸造服务地址 / 静态签名。",
-            )
-            // 一键内置铸造器
-            PreferenceButtonRow {
-                TextButton(
-                    text = "使用内置铸造器",
-                    enabled = builtinState != "starting",
-                    onClick = {
-                        builtinState = "starting"
-                        builtinError = ""
-                        viewModel.useBuiltinUskeyMinter()?.let { url ->
-                            serviceUrl = url
-                            builtinState = "ok"
-                        } ?: run {
-                            builtinState = "error"
-                            builtinError = viewModel.builtinUskeyError()
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            when (builtinState) {
-                "ok" -> PreferenceHint("内置铸造器已就绪：$serviceUrl（点击下方「保存」生效）")
-                "starting" -> PreferenceHint("正在启动内置铸造器（首次加载页面需几秒）…")
-                "error" -> PreferenceHint("内置铸造器启动失败：$builtinError", error = true)
-            }
-            PreferenceBlock {
-                TextField(
-                    value = serviceUrl,
-                    onValueChange = { serviceUrl = it.trim() },
-                    label = "USKey 铸造服务地址（如 http://127.0.0.1:8787/uskey）",
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            PreferenceHint("用浏览器抓包一次 /api/chat，把 X-Uskey 与 h38 填到下面（两分钟有效，仅验证用）：")
-            PreferenceBlock {
-                TextField(
-                    value = uskey,
-                    onValueChange = { uskey = it.trim() },
-                    label = "X-Uskey（URL 编码后的值）",
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TextField(
-                    value = h38,
-                    onValueChange = { h38 = it.trim() },
-                    label = "h38（X-HY92，38 位设备标识）",
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TextField(
-                    value = timestamp,
-                    onValueChange = { timestamp = it.filter(Char::isDigit).take(13) },
-                    label = "X-Timestamp（毫秒，可留空自动用当前时间）",
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                TextField(
-                    value = params,
-                    onValueChange = { params = it.trim() },
-                    label = "参数串（h38=..&timestamp=..&platform=web，可留空自动拼）",
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            PreferenceButtonRow {
-                TextButton(
-                    text = "清除配置",
-                    onClick = {
-                        onSave(dev.aigw.core.provider.yuanbao.UskeyConfig())
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(
-                    text = "保存",
-                    onClick = {
-                        val ts = timestamp.toLongOrNull() ?: 0L
-                        onSave(
-                            dev.aigw.core.provider.yuanbao.UskeyConfig(
-                                serviceUrl = serviceUrl,
-                                uskey = uskey,
-                                h38 = h38,
-                                timestamp = ts,
-                                params = params,
-                            ),
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-/** 静态签名时间戳的展示格式。 */
-private object TimeFormat {
-    fun format(epochMillis: Long): String {
-        val sdf = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
-        return sdf.format(java.util.Date(epochMillis))
-    }
-}

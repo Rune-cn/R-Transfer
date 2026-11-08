@@ -290,26 +290,22 @@ AnimatedVisibility(
   （上游有「任务中心」页）。
 - **模型测速**：`testModel()` 可用，模型页未接按钮。
 
-### 腾讯元宝（yuanbao）的 USKey 说明
+### 腾讯元宝（yuanbao）协议说明
 
-元宝的**查询类接口**（用户信息 / 模型列表 / 额度）只需 Cookie；**对话**（`POST /api/chat/{cid}`）
-需要 qimei USKey 签名三件套（`X-Timestamp` / `X-Bus-Params-Md5` / `X-Uskey`），
-USKey 只能由浏览器环境铸造、且短暂有效。当前支持三种配置方式（账号详情页
-「USKey 签名（对话必需）」入口）：
+元宝**网页版只需要 Cookie**（`hy_token` + `hy_user`），浏览器登录后复制导入即可。
 
-1. **内置铸造器**（推荐，无需电脑）：点「使用内置铸造器」——本机 WebView（系统 Chromium）
-   加载元宝页面 + 注入 `uskey_browser.py` 移植脚本（webpackChunk push → 模块 94482 →
-   QimeiWeb.getUSKeySync）现场签名；地址自动写入账号（`http://127.0.0.1:随机端口/uskey`）；
-   与外部服务输出同一契约，`:core` 的 `mintFromService` 无需改动。实现见
-   `app/src/main/java/.../uskey/`（WebViewUskeyMinter / LocalUskeyService / UskeyMinterManager，Koin single）。
-2. **外部铸造服务**：`uskey_browser.py --serve <port>`（Python）的地址填入
-   `uskeyServiceUrl`——注意手机上 `127.0.0.1` 指向手机自己，服务跑在电脑上时应填电脑的
-   局域网 IP（如 `http://192.168.x.x:8787/uskey`）。
-3. **静态签名**：浏览器抓包一次 `/api/chat` 请求，把 `X-Uskey` / `h38` 等填入账号凭证
-   （约 5 分钟有效，仅验证用）。
+对话 `POST /api/chat/{conversationId}` 是 SSE 流，要点（对照实测可用的开源实现
+`10020099/yuanbao2api`）：
+- **`conversationId` 本地生成 UUID**，请求体 `isTemporary: true` —— 不调用「创建会话」接口，
+  也不会在元宝界面留下记录；
+- **不需要 qimei USKey**（早期逆向文档的结论有误：那条路依赖浏览器环境、不稳定）；
+- 只需基础浏览器头 + 关键头 `x-agentid: {agentId}/{conversationId}`、`x-requested-with: XMLHttpRequest`；
+- 多轮对话：元宝只收纯文本 `prompt`，网关把 OpenAI `messages`（含 system 与历史）拼接后发送；
+- **不支持 OpenAI function calling**：客户端带 `tools` 时明确拒绝（CLIENT 错误），
+  元宝的联网搜索由上游自行执行。
 
-都没配时，provider **不发起对话请求**（上游被拒时照样扣配额），返回带指引的错误。
-首次接入建议先跑通查询类接口，再补 USKey。
+> 历史：曾实现过「qimei USKey 铸造器」（含 WebView 版），因该结论不成立已整体移除，
+> 代码回到「Cookie + 直连」的简单形态。
 
 ---
 

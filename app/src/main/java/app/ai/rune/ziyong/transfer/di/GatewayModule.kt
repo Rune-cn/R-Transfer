@@ -5,7 +5,6 @@ import app.ai.rune.ziyong.transfer.App
 import app.ai.rune.ziyong.transfer.gateway.AppViewModel
 import app.ai.rune.ziyong.transfer.gateway.EncryptedKeyValueStore
 import app.ai.rune.ziyong.transfer.gateway.GatewayHolder
-import app.ai.rune.ziyong.transfer.uskey.UskeyMinterManager
 import dev.aigw.core.gateway.GatewayEngine
 import dev.aigw.core.store.KeyValueStore
 import org.koin.android.ext.koin.androidContext
@@ -67,14 +66,6 @@ val gatewayModule = module {
      * 结果就是「点了开关没反应」——UI 永远看到 isRunning=false。
      */
     single<GatewayEngine> { get<GatewayHolder>().engine }
-
-    /**
-     * 内置元宝 USKey 铸造器门面（WebView + 本地回环服务）。
-     *
-     * 懒启动：只有配置/对话需要时才会创建 WebView。依赖 Application Context，
-     * 与网关同进程常驻；删除全部元宝账号时通过 [UskeyMinterManager.shutdown] 释放。
-     */
-    single<UskeyMinterManager> { UskeyMinterManager(androidContext()) }
 
     // AppViewModel 需要 Application（用于启动服务/装 APK）与已有的唯一引擎实例；
     // 两者都已在容器里，Koin 按构造参数自动注入
