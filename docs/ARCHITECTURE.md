@@ -119,3 +119,13 @@ core/             通用基础设施（env / i18n / crash / exception / reflecti
 - 字符串：`res/values/strings.xml`（en 主，116 键）+ `values-zh-rCN` + `values-zh-rTW`，三包键集合必须一致；改默认串时同步清理全部语言包，防 lintVital `ExtraTranslation`
 - 权限（AndroidManifest）：INTERNET / 前台服务（SPECIAL_USE）/ 通知 / 电池优化豁免 / 安装未知来源 / 悬浮窗（SYSTEM_ALERT_WINDOW）/ 开机广播 / 磁贴绑定等
 - 服务 / Receiver：GatewayService、LoginWaitService、GatewayTileService、GatewayBootReceiver、GatewayRestartReceiver
+
+
+---
+
+## 相关文档
+
+- [HANDOVER.md](HANDOVER.md) — 交接文档（架构、约定、已知问题、后续建议；**先读**）
+- [UPSTREAM_RESEARCH.md](UPSTREAM_RESEARCH.md) — 已做过完整调研但**未接入**的上游（Grok 网页版 / 通义千问网页版）：协议、阻断点、参考实现、落地步骤
+- [NEXT_SESSION_CHECKLIST.md](NEXT_SESSION_CHECKLIST.md) — 一次性交接清单（会话开始先读）
+- [../AGENTS.md](../AGENTS.md) — 面向 AI 代理的仓库铁律
