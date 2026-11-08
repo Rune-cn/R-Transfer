@@ -314,6 +314,8 @@ AnimatedVisibility(
   也可填外部 `uskey_browser.py --serve` 的地址替代内置铸造器。
   > 铸造器 WebView 必须**挂在 Activity 窗口上（1×1 不可见）**：一旦从窗口树 detach
   > （如登录 Dialog 关闭），部分 ROM 会挂起 JS，表现为「铸造超时」。
+  > 另有两层容错：**USKey 4 分钟内复用**（上游约 5 分钟有效，连续对话不再重复铸造）；
+  > 超时后销毁 WebView 并在下次调用重建（渲染进程可能已被系统回收）。
 - **设备标识 `h38`（`X-HY92`）**：未接铸造器时用账号里的 h38（F12 →
   Application → Local Storage → `_qimei_h38`），与 qimei uuid（Cookie 的 `_qimei_uuid42`）
   成对下发；接了铸造器则由铸造器提供同源 h38。

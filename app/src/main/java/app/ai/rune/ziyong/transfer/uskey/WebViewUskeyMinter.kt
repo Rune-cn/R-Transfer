@@ -43,6 +43,7 @@ class WebViewUskeyMinter(
      * 表现为「铸造超时」。
      */
     private val activityProvider: () -> android.app.Activity? = { null },
+    private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
     private val appContext = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
@@ -84,8 +85,17 @@ class WebViewUskeyMinter(
      * @param timeoutMs 总超时（含首次页面加载；页面已就绪时通常 <1.5s）。
      * @return 铸造结果；[MintResult.ok] 为 true 时携带签名四件套。
      */
+    /** 最近一次成功的铸造结果（4 分钟内复用，见 [mint]）。 */
+    @Volatile
+    private var cached: MintResult? = null
+
     fun mint(cookie: String, timeoutMs: Long = 30_000): MintResult {
         synchronized(mintLock) {
+            // USKey 与 timestamp 绑定、上游约 5 分钟有效：4 分钟内直接复用，
+            // 避免连续对话时重复铸造（也避开 WebView 闲置被系统挂起导致的超时）。
+            cached?.let { c ->
+                if (c.ok && nowMillis() - c.timestamp in 0..(USKEY_TTL_MS)) return c
+            }
             // 页面尚未就绪：确保 WebView 存在并加载页面（阻塞等待）
             if (!pageReady) {
                 val loaded = ensureLoaded(cookie, timeoutMs)
@@ -116,9 +126,26 @@ class WebViewUskeyMinter(
                 }
             }
             return try {
-                future.get(Math.max(1, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
+                val result = future.get(Math.max(1, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
+                if (result.ok) cached = result
+                result
             } catch (e: java.util.concurrent.TimeoutException) {
                 lastError = "铸造超时：WebView 未响应（可能被系统挂起，或页面尚未就绪）"
+                // 渲染进程可能已死亡：销毁当前 WebView，下次调用重建（复用死实例仍会超时）
+                val dead = webView
+                webView = null
+                pageReady = false
+                pageFinished = false
+                injectedCookie = null
+                handler.post {
+                    runCatching {
+                        dead?.let { v ->
+                            (v.parent as? android.view.ViewGroup)?.removeView(v)
+                            v.stopLoading()
+                            v.destroy()
+                        }
+                    }
+                }
                 MintResult.failure(lastError)
             } catch (e: Exception) {
                 lastError = "铸造失败：" + (e.message ?: "未知错误")
@@ -367,6 +394,9 @@ class WebViewUskeyMinter(
     }
 
     companion object {
+        /** USKey 复用窗口：上游有效期约 5 分钟，留 1 分钟余量。 */
+        private const val USKEY_TTL_MS = 4 * 60 * 1000L
+
         /** 与逆向包 uskey_browser.py 相同的页面。 */
         private const val CHAT_PAGE_URL = "https://yuanbao.tencent.com/chat/naQivTmsDa"
 
