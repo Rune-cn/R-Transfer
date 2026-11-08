@@ -61,4 +61,9 @@ class UskeyMinterManager(
             started = false
         }
     }
+
+    /** 接管内置浏览器登录用过的 WebView（成为铸造器，无需重新加载页面）。 */
+    fun adoptWebView(view: android.webkit.WebView, cookie: String) {
+        minter.adopt(view, cookie)
+    }
 }

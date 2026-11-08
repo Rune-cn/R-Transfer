@@ -216,7 +216,10 @@ private fun CookieLoginSection(providerId: String, viewModel: AppViewModel) {
     if (showWebLogin) {
         YuanbaoWebLoginDialog(
             onDismiss = { showWebLogin = false },
-            onDone = { cookie, h38 ->
+            onDone = { cookie, h38, webView ->
+                // 先把登录用过的 WebView 交给铸造器（已登录、页面已就绪，无需重新加载），
+                // 再导入账号——导入后会自动把铸造服务地址写进凭证。
+                viewModel.adoptUskeyWebView(webView, cookie)
                 viewModel.importCredentials(providerId, yuanbaoCredentialJson(cookie, h38))
                 showWebLogin = false
             },

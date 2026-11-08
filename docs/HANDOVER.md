@@ -295,7 +295,8 @@ AnimatedVisibility(
 账号详情页提供两种导入方式：
 - **内置浏览器登录（推荐）**：全屏 WebView 打开元宝首页，用户正常登录（扫码/手机号/微信），
   点「完成」后 App 自动读取 CookieManager 的 Cookie 与页面 `localStorage._qimei_h38`
-  —— 全程不需要开发者工具；两者产自同一 WebView，画像天然配对；
+  —— 全程不需要开发者工具；**登录用过的 WebView 会被接管为 USKey 铸造器**
+  （页面/登录态/qimei 环境已就绪，无需重新加载，也避免被重定向到登录页导致找不到 qimei 模块）；
 - **手动粘贴 Cookie**：备选（老浏览器/无 WebView 环境）。
 
 对话 `POST /api/chat/{conversationId}` 是 SSE 流，要点（对照实测可用的开源实现

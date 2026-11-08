@@ -141,6 +141,24 @@ class WebViewUskeyMinter(
         }
     }
 
+    /**
+     * 接管一个「已登录、已加载元宝页面」的 WebView（内置浏览器登录用过的实例）。
+     *
+     * 为什么接管而不是重新加载：登录用的 WebView 里 Cookie、qimei 环境、
+     * 页面路由（/chat/...）都已就绪，直接铸造又快又不会因重定向到登录页而失败。
+     */
+    fun adopt(view: WebView, cookie: String) {
+        synchronized(mintLock) {
+            runCatching { view.webViewClient = WebViewClient() }
+            webView = view
+            pageFinished = true
+            pageReady = true
+            // 记录 Cookie，避免下一次 mint 误判为「Cookie 变了」而清空重注入
+            injectedCookie = cookie
+            lastError = ""
+        }
+    }
+
     /** 释放 WebView（仅供彻底清理/调试；正常情况常驻）。 */
     fun destroy() {
         synchronized(mintLock) {
@@ -351,7 +369,7 @@ class WebViewUskeyMinter(
               }
               function useModule(M, ts, params){
                 var QW = (M && M.QimeiWeb) || M;
-                if (typeof QW !== 'function') return false;
+                if (typeof QW !== 'function') { lastErr = 'bad-export:' + typeof QW; return false; }
                 try {
                   var inst = new QW({appKey:'', disableDebugger:true});
                   var s = inst.getUSKeySync('7800385', h38, params);
@@ -388,6 +406,10 @@ class WebViewUskeyMinter(
                         } catch(e2) { /* 单个模块执行失败属正常，继续 */ }
                       }
                     } catch(e3) { lastErr = 'scan:' + (e3 && e3.message || e3); }
+                    // 扫描完仍未找到：记录模块表规模与页面地址，便于区分「版本变化」与「被重定向到登录页」
+                    if (!done && !lastErr) {
+                      lastErr = 'no-qimei-mod@' + String(location.pathname || '');
+                    }
                   }]);
                 } catch(e4) { lastErr = 'push:' + (e4 && e4.message || e4); }
                 if (!done) {

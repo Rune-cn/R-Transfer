@@ -47,11 +47,13 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun YuanbaoWebLoginDialog(
     onDismiss: () -> Unit,
-    onDone: (cookie: String, h38: String) -> Unit,
+    onDone: (cookie: String, h38: String, webView: WebView) -> Unit,
 ) {
     val context = LocalContext.current
     var status by remember { mutableStateOf("请先在上方页面登录元宝") }
     var reading by remember { mutableStateOf(false) }
+    // 登录成功后 WebView 被交给铸造器接管，不能再销毁（否则铸造器没页面可用）
+    var handedOff by remember { mutableStateOf(false) }
 
     val webView = remember {
         WebView(context).apply {
@@ -82,10 +84,13 @@ fun YuanbaoWebLoginDialog(
     DisposableEffect(Unit) {
         webView.loadUrl(HOME_URL)
         onDispose {
-            runCatching {
-                webView.stopLoading()
-                webView.webViewClient = WebViewClient()
-                webView.destroy()
+            // 已交接给铸造器：保留 WebView（它常驻后台铸造 USKey）
+            if (!handedOff) {
+                runCatching {
+                    webView.stopLoading()
+                    webView.webViewClient = WebViewClient()
+                    webView.destroy()
+                }
             }
         }
     }
@@ -104,7 +109,8 @@ fun YuanbaoWebLoginDialog(
                 it.isNotEmpty() && it != "null"
             }.orEmpty()
             reading = false
-            onDone(cookie, h38)
+            handedOff = true
+            onDone(cookie, h38, webView)
         }
     }
 

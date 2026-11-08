@@ -1222,6 +1222,19 @@ class AppViewModel(
         return ""
     }
 
+    /**
+     * 接管内置浏览器登录用过的 WebView 作为 USKey 铸造器。
+     *
+     * 该 WebView 已登录、页面已加载、qimei 环境就绪——直接铸造可靠且快，
+     * 也避免「重新加载页面被重定向到登录页 → 找不到 qimei 模块」的问题。
+     */
+    fun adoptUskeyWebView(view: android.webkit.WebView, cookie: String) {
+        uskeyMinter.adoptWebView(view, cookie)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { ensureYuanbaoUskeySetup() }
+        }
+    }
+
     /** 添加自定义供应商账号：每个 key 一个账号，名称可选（默认用供应商名）；同时保存供应商的模型列表。 */
     fun addCustomAccount(providerId: String, nickname: String, apiKey: String, models: List<String>) = action {
         val key = apiKey.trim()
