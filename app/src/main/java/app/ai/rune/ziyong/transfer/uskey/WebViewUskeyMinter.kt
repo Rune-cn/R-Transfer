@@ -395,7 +395,50 @@ class WebViewUskeyMinter(
               function fail(reason){
                 window.__uskayMintResult = {ok:false, reason: reason + (lastErr ? ('; last=' + lastErr) : '')};
               }
-              // 在对象 / 类原型上找「名字含 uskey 的方法」
+              // 从返回值里识别签名三件套（X-Uskey / X-Timestamp），拿到页面的真实签名
+              function scanHeaders(r){
+                if (!r || typeof r !== 'object') return false;
+                var uskey = '', tsVal = '';
+                for (var k in r) {
+                  if (!k) continue;
+                  var lk = String(k).toLowerCase();
+                  if (lk === 'x-uskey') uskey = String(r[k] || '');
+                  else if (lk === 'x-timestamp') tsVal = String(r[k] || '');
+                }
+                if (!uskey) return false;
+                var tsNum = parseInt(tsVal, 10) || Date.now();
+                var params = 'h38=' + h38 + '&timestamp=' + tsNum + '&platform=web';
+                window.__uskayMintResult = {ok:true, h38:h38, ts:tsNum, params:params, uskey:uskey};
+                return true;
+              }
+              // 行为探测：调用模块导出的函数，看谁返回签名头（函数名是混淆的，不能按名字找）
+              function probeModule(ex){
+                if (!ex) return false;
+                var owners = [ex];
+                if (ex.default) owners.push(ex.default);
+                for (var oi = 0; oi < owners.length; oi++) {
+                  var o = owners[oi];
+                  if (!o) continue;
+                  if (typeof o === 'object' && scanHeaders(o)) return true;
+                  var names = [];
+                  try { names = Object.getOwnPropertyNames(o); } catch(e) {}
+                  for (var i = 0; i < names.length && i < 48; i++) {
+                    var n = names[i];
+                    if (n === 'constructor') continue;
+                    var fn = null;
+                    try { fn = o[n]; } catch(e) {}
+                    if (typeof fn !== 'function') continue;
+                    var argsList = [[{}], [], ['naQivTmsDa']];
+                    for (var a = 0; a < argsList.length; a++) {
+                      try {
+                        var res = fn.apply(o, argsList[a]);
+                        if (scanHeaders(res)) return true;
+                      } catch(e2) { /* 换下一种入参 */ }
+                    }
+                  }
+                }
+                return false;
+              }
               function findUsKeyMethod(obj){
                 if (!obj) return null;
                 var owners = [obj];
@@ -452,7 +495,7 @@ class WebViewUskeyMinter(
                         diag = diag + ';c=' + cids.length;
                       } catch(e2) { diag = diag + ';cache:' + (e2 && e2.message || e2); }
                     }
-                    // 3) 按「工厂函数源码里出现 uskey」定位模块（不依赖模块 id / 导出名）
+                    // 3) 源码含 uskey 的模块：先按名调用，再做行为探测
                     if (!done) {
                       var srcHits = [];
                       try {
@@ -464,11 +507,12 @@ class WebViewUskeyMinter(
                           var src = (typeof factory === 'function') ? String(factory) : '';
                           if (src.indexOf('uskey') < 0 && src.indexOf('USKey') < 0 && src.indexOf('USKEY') < 0) continue;
                           srcHits.push(id2);
-                          if (srcHits.length > 40) break;
+                          if (srcHits.length > 20) break;
                           var ex2;
                           try { ex2 = req(id2); } catch(e3) { continue; }
                           var f3 = findUsKeyMethod(ex2) || (ex2 && ex2.default && findUsKeyMethod(ex2.default));
                           if (f3 && callIt(f3, ts, params)) { done = true; return; }
+                          if (probeModule(ex2)) { done = true; return; }
                         }
                         diag = diag + ';m=' + mids.length + ';src=' + (srcHits.slice(0, 6).join(',') || 'none');
                       } catch(e4) { diag = diag + ';scan:' + (e4 && e4.message || e4); }
