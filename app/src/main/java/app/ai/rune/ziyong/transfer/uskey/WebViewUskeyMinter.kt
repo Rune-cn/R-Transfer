@@ -51,6 +51,16 @@ class WebViewUskeyMinter(
     @Volatile
     private var pageReady = false
 
+    /**
+     * 页面是否已加载完成（onPageFinished）。
+     *
+     * 必须与 h38 一起判定：localStorage 是 WebView 共享的，登录时写入的 h38 在页面
+     * 还没加载完时就能读到——只查 h38 会在 webpack 依赖未就绪时过早铸造
+     * （表现为 `Cannot read properties of undefined (reading 'call')`）。
+     */
+    @Volatile
+    private var pageFinished = false
+
     /** 并发铸造互斥：同一时间只能有一个 mint 在途。 */
     private val mintLock = Any()
 
@@ -164,9 +174,11 @@ class WebViewUskeyMinter(
                     // 页面加载失败/超时也放行到 evaluateJavascript：由后续轮询决定成败
                     view.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String?) {
-                            // 页面完成不代表 qimei 就绪；h38 就绪的判定交给人 readyCheck
+                            // 页面完成不代表 qimei 就绪；两者都满足才算就绪（见 readyCheck）
+                            pageFinished = true
                         }
                     }
+                    pageFinished = false
                     view.loadUrl(CHAT_PAGE_URL)
                 }
                 readyCheck(view, ready, System.currentTimeMillis() + timeoutMs)
@@ -235,8 +247,17 @@ class WebViewUskeyMinter(
         if (ready.isDone) return
         val now = System.currentTimeMillis()
         if (now >= deadline) {
-            lastError = "页面加载后 qimei 未就绪（h38 不可读）"
+            lastError = if (!pageFinished) {
+                "元宝页面加载超时（可能网络不通或 WebView 被系统限制）"
+            } else {
+                "页面已加载但 qimei 未就绪（h38 不可读）"
+            }
             ready.complete(false)
+            return
+        }
+        if (!pageFinished) {
+            // 页面还没加载完：不要提前铸造（webpack 依赖未就绪会报 reading 'call'）
+            handler.postDelayed({ readyCheck(view, ready, deadline) }, 500)
             return
         }
         try {
@@ -322,27 +343,60 @@ class WebViewUskeyMinter(
         private val MINT_TRIGGER_SCRIPT = """
             (function(){
               window.__uskayMintResult = {ok:false,reason:'pending'};
-              try {
-                var h38=String(localStorage.getItem('_qimei_h38')||'');
-                if(!h38){ window.__uskayMintResult={ok:false,reason:'no-h38'}; return; }
-                window.webpackChunk_N_E.push([[Math.random()],{},function(r){
-                  try {
-                    var M = r(94482);
-                    var QW = (M && M.QimeiWeb) || M;
-                    if(typeof QW!=='function'){ window.__uskayMintResult={ok:false,reason:'bad-mod-type'+typeof QW}; return; }
-                    var inst;
-                    try { inst = new QW({appKey:'',disableDebugger:true}); }
-                    catch(e){ window.__uskayMintResult={ok:false,reason:'new:'+(e&&e.message||e)}; return; }
-                    var ts=Date.now();
-                    var params='h38='+h38+'&timestamp='+ts+'&platform=web';
-                    var s;
-                    try { s=inst.getUSKeySync('7800385',h38,params); }
-                    catch(e){ window.__uskayMintResult={ok:false,reason:'sig:'+(e&&e.message||e)}; return; }
-                    if(!s){ window.__uskayMintResult={ok:false,reason:'empty-uskey'}; return; }
-                    window.__uskayMintResult={ok:true,h38:h38,ts:ts,params:params,uskey:encodeURIComponent(s)};
-                  } catch(e){ window.__uskayMintResult={ok:false,reason:'run:'+(e&&e.message||e)}; }
-                }]);
-              } catch(e){ window.__uskayMintResult={ok:false,reason:'outer:'+(e&&e.message||e)}; }
+              var h38 = String(localStorage.getItem('_qimei_h38')||'');
+              if(!h38){ window.__uskayMintResult = {ok:false,reason:'no-h38'}; return; }
+              var attempts = 0, lastErr = '';
+              function fail(reason){
+                window.__uskayMintResult = {ok:false, reason: reason + (lastErr ? ('; last=' + lastErr) : '')};
+              }
+              function useModule(M, ts, params){
+                var QW = (M && M.QimeiWeb) || M;
+                if (typeof QW !== 'function') return false;
+                try {
+                  var inst = new QW({appKey:'', disableDebugger:true});
+                  var s = inst.getUSKeySync('7800385', h38, params);
+                  if (!s) { lastErr = 'empty-uskey'; return false; }
+                  window.__uskayMintResult = {ok:true, h38:h38, ts:ts, params:params, uskey:encodeURIComponent(s)};
+                  return true;
+                } catch(e) { lastErr = 'sig:' + (e && e.message || e); return false; }
+              }
+              function tryOnce(){
+                attempts++;
+                var ts = Date.now();
+                var params = 'h38=' + h38 + '&timestamp=' + ts + '&platform=web';
+                var done = false;
+                try {
+                  window.webpackChunk_N_E.push([[Math.random()], {}, function(req){
+                    if (done) return;
+                    // 1) 先试结论里的模块 id
+                    try {
+                      var M = req(94482);
+                      if (useModule(M, ts, params)) { done = true; return; }
+                    } catch(e) { lastErr = 'mod94482:' + (e && e.message || e); }
+                    // 2) 兜底：扫描模块表找导出 QimeiWeb 的模块（前端改版后 id 可能变化）
+                    try {
+                      var mods = req.m || {};
+                      var ids = Object.keys(mods);
+                      for (var i = 0; i < ids.length && i < 2000; i++) {
+                        var id = ids[i];
+                        if (String(id) === '94482') continue;
+                        try {
+                          var MM = req(id);
+                          if (MM && typeof MM.QimeiWeb === 'function') {
+                            if (useModule(MM, ts, params)) { done = true; return; }
+                          }
+                        } catch(e2) { /* 单个模块执行失败属正常，继续 */ }
+                      }
+                    } catch(e3) { lastErr = 'scan:' + (e3 && e3.message || e3); }
+                  }]);
+                } catch(e4) { lastErr = 'push:' + (e4 && e4.message || e4); }
+                if (!done) {
+                  if (attempts >= 6) fail('mint-failed');
+                  else setTimeout(tryOnce, 800);
+                }
+              }
+              // h38 出现得比 webpack 依赖就绪更早：先等页面 JS 稳定再铸造
+              setTimeout(tryOnce, 1500);
             })()
         """.trimIndent()
 
