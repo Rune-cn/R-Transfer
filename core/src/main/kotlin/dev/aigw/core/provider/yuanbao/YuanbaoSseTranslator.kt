@@ -14,9 +14,11 @@ import dev.aigw.core.util.stringOrNull
  * `error`（业务错误）/ `plugin` / `msgIdx` / `speechType` / `extra` / `delete` / `end`。
  *
  * 翻译规则：
- * - `text` 且 `msg` 非空 → 输出 content delta；
- * - `status` 携带 `stopReason` → 输出收尾帧（finish_reason）；
- * - `error` / `event: error` → 输出错误提示帧并结束（不中断流，客户端能正常收到 [DONE]）；
+ * - `text` 且 `msg` 非空 → 若含工具调用标记，转成标准 `tool_calls` 增量；
+ *   否则输出 content delta（标记跨 chunk 由 [YuanbaoToolBridge.StreamParser] 缓冲）；
+ * - `status` 携带 `stopReason` → 输出收尾帧（有工具调用时 `finish_reason=tool_calls`）；
+ * - `error` / `event: error` → 输出标准错误帧（`data: {"error":{...}}`），
+ *   网关据此把本次调用标为失败（不再伪装成模型回复）；
  * - 其它帧忽略；流结束时由 [close] 补终止帧与 [DONE]。
  */
 class YuanbaoSseTranslator(
@@ -26,6 +28,9 @@ class YuanbaoSseTranslator(
 ) {
     private var lastEvent: String? = null
     private var finished = false
+    private var hasToolCalls = false
+    private var toolCallIndex = 0
+    private val toolParser = YuanbaoToolBridge.StreamParser()
 
     fun translate(line: String): List<String> {
         if (finished) return emptyList()
@@ -42,7 +47,7 @@ class YuanbaoSseTranslator(
         return when (type) {
             "text" -> {
                 val msg = event.stringOrNull("msg").orEmpty()
-                if (msg.isEmpty()) emptyList() else listOf(chunk(textDelta(msg)))
+                if (msg.isEmpty()) emptyList() else translateText(msg)
             }
 
             "status" -> {
@@ -61,14 +66,42 @@ class YuanbaoSseTranslator(
     /** 流结束时补帧：上游没发终止也要让客户端收到结束块与 [DONE]。 */
     fun close(): List<String> {
         if (finished) return emptyList()
+        val out = mutableListOf<String>()
+        // 冲掉解析器里剩余的纯文本（未闭合的工具段会被丢弃）
+        for (event in toolParser.finish()) {
+            if (event is YuanbaoToolBridge.StreamParser.Event.Text) {
+                out += chunk(textDelta(event.text))
+            }
+        }
+        out += onTerminal()
         finished = true
-        return listOf(chunk(JsonObject(), "stop"), DONE)
+        return out
+    }
+
+    /** 把一段正文增量翻译成 content / tool_calls 帧。 */
+    private fun translateText(msg: String): List<String> {
+        val out = mutableListOf<String>()
+        for (event in toolParser.feed(msg)) {
+            when (event) {
+                is YuanbaoToolBridge.StreamParser.Event.Text ->
+                    if (event.text.isNotEmpty()) out += chunk(textDelta(event.text))
+
+                is YuanbaoToolBridge.StreamParser.Event.Call -> {
+                    hasToolCalls = true
+                    out += chunk(toolCallDelta(event.call))
+                }
+
+                YuanbaoToolBridge.StreamParser.Event.ToolMode -> Unit
+            }
+        }
+        return out
     }
 
     private fun onTerminal(): List<String> {
         if (finished) return emptyList()
         finished = true
-        return listOf(chunk(JsonObject(), "stop"), DONE)
+        val reason = if (hasToolCalls) "tool_calls" else "stop"
+        return listOf(chunk(JsonObject(), reason), DONE)
     }
 
     /**
@@ -89,6 +122,23 @@ class YuanbaoSseTranslator(
             })
         }
         return listOf("data: $errorFrame\n\n", DONE)
+    }
+
+    private fun toolCallDelta(call: YuanbaoToolBridge.ToolCall): JsonObject {
+        val index = toolCallIndex++
+        return JsonObject().apply {
+            add("tool_calls", JsonArray().apply {
+                add(JsonObject().apply {
+                    addProperty("index", index)
+                    addProperty("id", "call_" + completionId.removePrefix("chatcmpl-") + "_$index")
+                    addProperty("type", "function")
+                    add("function", JsonObject().apply {
+                        addProperty("name", call.name)
+                        addProperty("arguments", call.arguments)
+                    })
+                })
+            })
+        }
     }
 
     private fun chunk(delta: JsonObject, finishReason: String? = null): String {

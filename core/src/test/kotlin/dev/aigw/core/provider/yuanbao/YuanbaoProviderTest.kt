@@ -194,31 +194,99 @@ class YuanbaoProviderTest {
         assertFalse(result.status in 200..299, "不能连网的环境下应快速失败（而不是挂起）")
     }
 
+    // ------------------------------------------------------------------ 工具调用桥接
+
     @Test
-    fun `请求带 tools 时明确拒绝`() {
-        // tools 检查在发请求之前：不依赖网络即可断言拒绝语义
-        val provider = YuanbaoProvider(hooks = ProviderHooks(), host = "http://127.0.0.1:1")
-        val credential = YuanbaoCredential(cookie = cookie)
-        val result = provider.openChat(
-            ProviderAccount("yuanbao", "user123", "元宝", credential.toJson()),
-            """{"model":"m1","stream":false,"tools":[{"type":"function","function":{"name":"search"}}],"messages":[{"role":"user","content":"hi"}]}""",
-        )
-        assertEquals(0, result.status)
-        val failure = result.failure
-        assertNotNull(failure)
-        assertEquals(dev.aigw.core.provider.ErrorKind.CLIENT, failure.kind)
-        assertTrue(failure.message.contains("不支持工具调用"))
+    fun `工具定义注入系统提示`() {
+        val tools = com.google.gson.JsonParser.parseString(
+            """[{"type":"function","function":{"name":"web_search","description":"联网搜索","parameters":{"type":"object","properties":{"q":{"type":"string"}}}}}]""",
+        ).asJsonArray
+        val prompt = YuanbaoToolBridge.buildToolSystemPrompt(tools)
+        assertTrue(prompt.contains("web_search"))
+        assertTrue(prompt.contains("联网搜索"))
+        assertTrue(prompt.contains("<|tool_calls_begin|>"))
+        assertTrue(prompt.contains("<|tool_calls_end|>"))
     }
 
     @Test
-    fun `tool_choice 单独出现也视为工具请求`() {
-        val provider = YuanbaoProvider(hooks = ProviderHooks(), host = "http://127.0.0.1:1")
-        val credential = YuanbaoCredential(cookie = cookie)
-        val result = provider.openChat(
-            ProviderAccount("yuanbao", "user123", "元宝", credential.toJson()),
-            """{"model":"m1","stream":false,"tool_choice":"auto","messages":[{"role":"user","content":"hi"}]}""",
+    fun `消息转 prompt 保留工具调用与执行结果`() {
+        val messages = com.google.gson.JsonParser.parseString(
+            """[
+              {"role":"system","content":"你是助手"},
+              {"role":"user","content":"查一下今天天气"},
+              {"role":"assistant","tool_calls":[{"id":"c1","type":"function","function":{"name":"web_search","arguments":"{\"q\":\"天气\"}"}}]},
+              {"role":"tool","name":"web_search","content":"晴天 25 度"}
+            ]""",
+        ).asJsonArray
+        val prompt = YuanbaoToolBridge.convertMessages(messages, null)
+        assertTrue(prompt.contains("[系统提示: 你是助手]"))
+        assertTrue(prompt.contains("用户: 查一下今天天气"))
+        assertTrue(prompt.contains("调用工具 web_search"))
+        assertTrue(prompt.contains("工具 web_search 的执行结果:"))
+        assertTrue(prompt.contains("晴天 25 度"))
+        assertTrue(prompt.contains("请作为助手继续回复"))
+    }
+
+    @Test
+    fun `解析 ASCII 与全角标记的工具调用`() {
+        val ascii = """好的<|tool_calls_begin|>{"name":"web_search","arguments":{"q":"hi"}}<|tool_calls_end|>"""
+        val c1 = YuanbaoToolBridge.parseToolCalls(ascii)
+        assertEquals(1, c1.size)
+        assertEquals("web_search", c1[0].name)
+        assertTrue(c1[0].arguments.contains("\"q\""))
+
+        val unicode = """<｜tool▁calls_begin｜>{"name":"run","arguments":"{}"}<｜tool▁calls_end｜>"""
+        val c2 = YuanbaoToolBridge.parseToolCalls(unicode)
+        assertEquals(1, c2.size)
+        assertEquals("run", c2[0].name)
+    }
+
+    @Test
+    fun `多个工具调用按顺序解析`() {
+        val text = """<|tool_calls_begin|>{"name":"a","arguments":"{}"}<|tool_calls_end|>
+            <|tool_calls_begin|>{"name":"b","arguments":"{}"}<|tool_calls_end|>"""
+        val calls = YuanbaoToolBridge.parseToolCalls(text)
+        assertEquals(listOf("a", "b"), calls.map { it.name })
+    }
+
+    @Test
+    fun `非法 JSON 不产生工具调用`() {
+        val text = "<|tool_calls_begin|>not-json<|tool_calls_end|>"
+        assertTrue(YuanbaoToolBridge.parseToolCalls(text).isEmpty())
+    }
+
+    @Test
+    fun `流式解析跨 chunk 的工具标记`() {
+        val parser = YuanbaoToolBridge.StreamParser()
+        val events = mutableListOf<YuanbaoToolBridge.StreamParser.Event>()
+        events += parser.feed("你好<|tool_calls_be")
+        events += parser.feed("gin|>{\"name\":\"web_search\",\"arguments\":\"{}\"}<|tool_calls_end|>")
+        events += parser.finish()
+        val texts = events.filterIsInstance<YuanbaoToolBridge.StreamParser.Event.Text>()
+            .joinToString("") { it.text }
+        val calls = events.filterIsInstance<YuanbaoToolBridge.StreamParser.Event.Call>()
+        assertTrue(texts.contains("你好"))
+        assertEquals(1, calls.size)
+        assertEquals("web_search", calls[0].call.name)
+    }
+
+    @Test
+    fun `未闭合的工具段在流结束时丢弃`() {
+        val parser = YuanbaoToolBridge.StreamParser()
+        parser.feed("<|tool_calls_begin|>{\"name\":\"x\"")
+        val rest = parser.finish().filterIsInstance<YuanbaoToolBridge.StreamParser.Event.Text>()
+        assertTrue(rest.isEmpty())
+    }
+
+    @Test
+    fun `SSE 翻译器输出标准 tool_calls 帧`() {
+        val translator = YuanbaoSseTranslator("chatcmpl-abc", "deep_seek_v3", 1700000000)
+        val out = translator.translate(
+            """data: {"type":"text","msg":"<|tool_calls_begin|>{\"name\":\"web_search\",\"arguments\":\"{}\"}<|tool_calls_end|>"}""",
         )
-        assertNotNull(result.failure)
-        assertEquals(dev.aigw.core.provider.ErrorKind.CLIENT, result.failure!!.kind)
+        assertTrue(out.any { it.contains("\"tool_calls\"") }, "应输出 tool_calls 帧")
+        assertTrue(out.any { it.contains("web_search") })
+        val tail = translator.close()
+        assertTrue(tail.any { it.contains("tool_calls") }, "结束帧 finish_reason 应为 tool_calls")
     }
 }

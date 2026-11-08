@@ -327,8 +327,11 @@ AnimatedVisibility(
   OpenAI 错误帧（`data: {"error":{...}}`）透传——不再伪装成模型回复，
   这样客户端能正确识别失败，调用记录也能标为失败（区别于以前的「看起来像模型在说服务繁忙」）；
 - 多轮对话：元宝只收纯文本 `prompt`，网关把 OpenAI `messages`（含 system 与历史）拼接后发送；
-- **不支持 OpenAI function calling**：客户端带 `tools` 时明确拒绝（CLIENT 错误），
-  元宝的联网搜索由上游自行执行。
+- **支持工具调用（提示词模拟）**：元宝不支持原生 function calling，网关用
+  `YuanbaoToolBridge` 模拟——把 `tools` 定义注入 system prompt 并约定输出格式
+  （`<|tool_calls_begin|>{"name":..,"arguments":..}<|tool_calls_end|>`，兼容全角变体），
+  再从模型输出里解析成标准 OpenAI `tool_calls`；`role: "tool"` 的执行结果会拼回 prompt
+  供下一轮使用（工具结果截断 3000 字符）。模型不按格式输出时自动降级为纯文本，不报错。
 
 > 「服务繁忙，请稍后再试。」属上游**临时限流**：稍后重试即可；若频繁出现，
 > 说明该账号被限流，可在账号池加号（网关的失败转移会换号重试非流式请求）。

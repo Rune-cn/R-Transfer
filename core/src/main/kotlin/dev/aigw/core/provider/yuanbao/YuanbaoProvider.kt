@@ -100,19 +100,8 @@ class YuanbaoProvider(
         val agentId = YuanbaoConstants.DEFAULT_AGENT_ID
         val model = resolveModel(requestedModelOf(openAiBody))
 
-        // 元宝网页版不支持 OpenAI function calling。
-        if (buildChatUsesTools(openAiBody)) {
-            hooks.onLog("元宝：客户端请求包含 tools，但上游不支持 function calling")
-            return StreamFailureChatCall(
-                0,
-                UpstreamError(
-                    ErrorKind.CLIENT,
-                    "元宝网页版不支持工具调用（OpenAI function calling）：请关闭客户端的工具/MCP/搜索功能后重试，" +
-                        "或改用支持工具的模型。元宝内置的联网搜索由上游自动执行，无需客户端工具。",
-                ),
-            )
-        }
-
+        // 元宝不支持原生 function calling：由 YuanbaoToolBridge 用提示词模拟（见该类文档）。
+        // 客户端带 tools 时不再拒绝，而是注入工具定义并解析模型输出里的调用标记。
         // 会话 ID 本地生成（临时会话），不调用创建会话接口。
         val cid = UUID.randomUUID().toString()
         // USKey 动态签名：配置了铸造服务时注入；缺它上游一律返回「抱歉，我无法回答这个问题」。
@@ -439,34 +428,18 @@ class YuanbaoProvider(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
     /**
-     * 把 OpenAI `messages` 拼成元宝 prompt（元宝只收纯文本 prompt，多轮靠拼接）。
+     * 把 OpenAI 请求体转成元宝 prompt。
      *
-     * 与原实现只取最后一条 user 消息不同：这里保留 system 与历史轮次，
-     * 否则多轮对话会丢上下文。
+     * 统一走 [YuanbaoToolBridge.convertMessages]：无 tools 时等价于「system/user/assistant
+     * 顺序拼接 + 请作为助手继续回复」；有 tools 时额外注入工具定义与调用格式，
+     * 并保留 `role: "tool"` 的执行结果（多轮工具调用必需）。
      */
     private fun buildPrompt(openAiBody: String): String {
         val obj = runCatching { JsonParser.parseString(openAiBody).asJsonObject }.getOrNull()
             ?: return openAiBody
         val messages = obj.arrayOrNull("messages") ?: return openAiBody
-        val sb = StringBuilder()
-        for (element in messages) {
-            val message = element.asObjectOrNull() ?: continue
-            val role = message.stringOrNull("role").orEmpty()
-            val content = message.stringOrNull("content").orEmpty()
-            if (content.isEmpty()) continue
-            when (role) {
-                "system" -> sb.append("系统指示：").append(content).append("\n\n")
-                "assistant" -> sb.append("（此前回复）").append(content).append("\n\n")
-                else -> sb.append(content).append("\n\n")
-            }
-        }
-        return sb.toString().trim().ifEmpty { openAiBody }
-    }
-
-    /** 请求体是否带 tools / tool_choice（元宝网页版不支持，需明确拒绝）。 */
-    private fun buildChatUsesTools(openAiBody: String): Boolean {
-        val obj = runCatching { JsonParser.parseString(openAiBody).asJsonObject }.getOrNull() ?: return false
-        return obj.arrayOrNull("tools")?.size()?.let { it > 0 } == true || obj.has("tool_choice")
+        val tools = obj.arrayOrNull("tools")
+        return YuanbaoToolBridge.convertMessages(messages, tools)
     }
 
     private fun JsonObject.has(name: String): Boolean = get(name) != null && !get(name).isJsonNull
