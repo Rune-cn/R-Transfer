@@ -8,7 +8,7 @@
 - **沙箱**：Ubuntu 24.04 rootfs，工作目录 `/workspace`；`/upload` 只读
 - **网络**：本沙箱能直连 api.github.com；**git 协议（git push / ls-remote）经常超时**
   ——提交一律走 GitHub Git Trees/Blobs API（见 `docs/HANDOVER.md` §10）
-- **仓库**：`Rune-cn/R-Transfer`（**私有**），main 直接推送（历史惯例）
+- **仓库**：`Rune-cn/R-Transfer`（**公开**），main 直接推送（历史惯例）
 - **凭据**：GitHub PAT（classic：`repo`）——**由用户在会话中提供，严禁写入仓库/文档**；正文字符串也勿回显
 - **构建**：一般不做本地构建（无 JDK25/SDK）。工作流 = 静态引用扫描 → 提交推送 → 等 CI（5–15 分钟）→ 产物下载链接发给用户
 - **每次构建完成必须给下载链接**（运行页 + 两个 artifact）
